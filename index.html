@@ -1,0 +1,283 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مختبر التميز الطبي</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;
+ font-family:Arial,sans-serif;
+ background:#eef4f8;
+ color:#173047;
+}
+header{
+ background:linear-gradient(135deg,#075b78,#087f8c);
+ color:white;
+ padding:22px 15px;
+ text-align:center;
+}
+header h1{margin:0 0 8px;font-size:24px}
+header p{margin:0;font-size:14px}
+.container{max-width:900px;margin:auto;padding:15px}
+.card{
+ background:white;
+ border-radius:14px;
+ padding:16px;
+ margin-bottom:15px;
+ box-shadow:0 3px 12px #0001;
+}
+h2{color:#08778b;font-size:19px}
+input,select,button{
+ width:100%;
+ padding:12px;
+ margin:6px 0;
+ border-radius:9px;
+ border:1px solid #ccd9e2;
+ font-size:16px;
+}
+button{
+ border:0;
+ background:#087f8c;
+ color:white;
+ font-weight:bold;
+ cursor:pointer;
+}
+button.secondary{background:#38566c}
+button.danger{background:#c0392b}
+.grid{
+ display:grid;
+ grid-template-columns:1fr 1fr;
+ gap:8px;
+}
+table{
+ width:100%;
+ border-collapse:collapse;
+ font-size:14px;
+}
+th,td{
+ border:1px solid #dce5eb;
+ padding:9px;
+ text-align:center;
+}
+th{background:#e2f2f5}
+.table-wrap{overflow-x:auto}
+.small{font-size:13px;color:#607687}
+@media(max-width:550px){
+ .grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>مختبر التميز الطبي التخصصي</h1>
+<p>نظام إدارة المختبر والنتائج الطبية</p>
+</header>
+
+<div class="container">
+
+<div class="card">
+<h2>تسجيل نتيجة فحص جديدة</h2>
+
+<div class="grid">
+<input id="patient" placeholder="اسم المريض">
+<input id="patientId" placeholder="رقم الملف">
+<input id="age" placeholder="العمر">
+<select id="gender">
+<option value="">الجنس</option>
+<option>ذكر</option>
+<option>أنثى</option>
+</select>
+</div>
+
+<input id="doctor" placeholder="اسم الطبيب">
+
+<div class="grid">
+<input id="test" placeholder="اسم الفحص">
+<input id="result" placeholder="النتيجة">
+<input id="unit" placeholder="الوحدة">
+<input id="normal" placeholder="المعدل الطبيعي">
+</div>
+
+<input id="date" type="date">
+
+<button onclick="addResult()">حفظ النتيجة</button>
+</div>
+
+<div class="card">
+<h2>النتائج المسجلة</h2>
+
+<input id="search" placeholder="بحث عن مريض أو فحص..." oninput="displayResults()">
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>المريض</th>
+<th>الفحص</th>
+<th>النتيجة</th>
+<th>الوحدة</th>
+<th>التاريخ</th>
+<th>حذف</th>
+</tr>
+</thead>
+<tbody id="records"></tbody>
+</table>
+</div>
+</div>
+
+<div class="card">
+<h2>النسخ الاحتياطي والبيانات</h2>
+
+<button onclick="backup()">تنزيل نسخة احتياطية</button>
+
+<button class="secondary" onclick="document.getElementById('restoreFile').click()">
+استعادة نسخة احتياطية
+</button>
+
+<input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restore(event)">
+
+<button class="secondary" onclick="window.print()">طباعة</button>
+
+<p class="small">
+يتم حفظ البيانات على هذا الجهاز تلقائياً.
+يرجى تنزيل نسخة احتياطية بصورة دورية.
+</p>
+</div>
+
+</div>
+
+<script>
+let data = JSON.parse(localStorage.getItem("labRecords") || "[]");
+
+document.getElementById("date").value =
+new Date().toISOString().slice(0,10);
+
+function save(){
+ localStorage.setItem("labRecords",JSON.stringify(data));
+ displayResults();
+}
+
+function addResult(){
+ let patient=document.getElementById("patient").value.trim();
+ let test=document.getElementById("test").value.trim();
+ let result=document.getElementById("result").value.trim();
+
+ if(!patient || !test || !result){
+  alert("يرجى إدخال اسم المريض والفحص والنتيجة");
+  return;
+ }
+
+ let item={
+  patient:patient,
+  patientId:document.getElementById("patientId").value,
+  age:document.getElementById("age").value,
+  gender:document.getElementById("gender").value,
+  doctor:document.getElementById("doctor").value,
+  test:test,
+  result:result,
+  unit:document.getElementById("unit").value,
+  normal:document.getElementById("normal").value,
+  date:document.getElementById("date").value
+ };
+
+ data.unshift(item);
+ save();
+
+ alert("تم حفظ النتيجة بنجاح");
+
+ document.getElementById("patient").value="";
+ document.getElementById("patientId").value="";
+ document.getElementById("age").value="";
+ document.getElementById("doctor").value="";
+ document.getElementById("test").value="";
+ document.getElementById("result").value="";
+ document.getElementById("unit").value="";
+ document.getElementById("normal").value="";
+}
+
+function displayResults(){
+ let search=document.getElementById("search").value.toLowerCase();
+ let records=document.getElementById("records");
+
+ records.innerHTML="";
+
+ data.forEach((item,index)=>{
+  let text=(item.patient+" "+item.test+" "+item.patientId).toLowerCase();
+
+  if(text.includes(search)){
+   let row=records.insertRow();
+
+   row.insertCell().textContent=item.patient;
+   row.insertCell().textContent=item.test;
+   row.insertCell().textContent=item.result;
+   row.insertCell().textContent=item.unit;
+   row.insertCell().textContent=item.date;
+
+   let btn=document.createElement("button");
+   btn.textContent="حذف";
+   btn.className="danger";
+   btn.onclick=()=>removeResult(index);
+
+   row.insertCell().appendChild(btn);
+  }
+ });
+}
+
+function removeResult(index){
+ if(confirm("هل تريد حذف هذه النتيجة؟")){
+  data.splice(index,1);
+  save();
+ }
+}
+
+function backup(){
+ let file=new Blob(
+  [JSON.stringify(data,null,2)],
+  {type:"application/json"}
+ );
+
+ let a=document.createElement("a");
+ a.href=URL.createObjectURL(file);
+ a.download="Lab_Backup_"+new Date().toISOString().slice(0,10)+".json";
+ a.click();
+}
+
+function restore(event){
+ let file=event.target.files[0];
+ if(!file)return;
+
+ let reader=new FileReader();
+
+ reader.onload=function(e){
+  try{
+   let saved=JSON.parse(e.target.result);
+
+   if(!Array.isArray(saved)){
+    alert("الملف غير صالح");
+    return;
+   }
+
+   if(confirm("هل تريد استعادة البيانات؟")){
+    data=saved;
+    save();
+    alert("تمت استعادة البيانات بنجاح");
+   }
+  }catch{
+   alert("تعذر قراءة الملف");
+  }
+ };
+
+ reader.readAsText(file);
+}
+
+displayResults();
+</script>
+
+</body>
+</html>
