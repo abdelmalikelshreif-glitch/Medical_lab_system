@@ -279,5 +279,47 @@ function restore(event){
 displayResults();
 </script>
 
+
+<div class="card" id="patientHistory">
+<h2>ملف المريض والنتائج السابقة</h2>
+<input id="historySearch" placeholder="ابحث باسم المريض أو رقم الملف">
+<button onclick="searchPatientHistory()">عرض سجل المريض</button>
+<div id="historyResults"></div>
+</div>
+
+<script>
+function searchPatientHistory(){
+ const q=document.getElementById("historySearch").value.trim().toLowerCase();
+ const out=document.getElementById("historyResults");
+ out.innerHTML="";
+
+ if(!q){
+  out.textContent="يرجى إدخال اسم المريض أو رقم الملف";
+  return;
+ }
+
+ const matches=data.filter(item =>
+  String(item.patient || "").toLowerCase().includes(q) ||
+  String(item.patientId || "").toLowerCase().includes(q)
+ );
+
+ if(!matches.length){
+  out.textContent="لا توجد نتائج سابقة لهذا المريض";
+  return;
+ }
+
+ const table=document.createElement("table");
+ table.innerHTML="<tr><th>الفحص</th><th>النتيجة</th><th>الوحدة</th><th>التاريخ</th></tr>";
+
+ matches.forEach(item=>{
+  const row=table.insertRow();
+  [item.test,item.result,item.unit,item.date].forEach(value=>{
+   row.insertCell().textContent=value || "-";
+  });
+ });
+
+ out.appendChild(table);
+}
+</script>
 </body>
 </html>
