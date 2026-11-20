@@ -130,9 +130,17 @@ const sections = [
   {
     name: "الفحوصات السريعة",
     color: "#477eae",
-    tests: ["Random Blood Sugar", "COVID-19 Rapid Test", "Dengue NS1"]
-  },
-  {
+    tests: [
+  "CBC",
+  "BFFM",
+  "UG",
+  "Stool G",
+  "HCG",
+  "Blood Group",
+  "RBS",
+  "Dengue fever quantitative",
+  "ICT for malaria"
+]},
     name: "التخثر وبنك الدم",
     color: "#b74747",
     tests: ["PT", "INR", "APTT", "Blood Group", "Rh Factor"]
@@ -204,29 +212,6 @@ function renderTests() {
   });
 }
 
-      checkbox.type = "checkbox";
-      checkbox.checked = selectedTests.includes(test);
-
-      checkbox.addEventListener("change", () => {
-        if (checkbox.checked) {
-          if (!selectedTests.includes(test)) selectedTests.push(test);
-        } else {
-          selectedTests = selectedTests.filter(name => name !== test);
-        }
-        renderTests();
-        renderFields();
-      });
-
-      const name = document.createElement("span");
-      name.textContent = test;
-
-      label.appendChild(checkbox);
-      label.appendChild(name);
-      item.appendChild(label);
-      testsBox.appendChild(item);
-    });
-
-    container.appendChild(testsBox);
   });
 }
 
