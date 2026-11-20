@@ -290,4 +290,176 @@ renderTests();
 renderHistory();
 </script>
 </body>
-</html>
+
+<div dir="rtl" id="lab-system" style="font-family:Tahoma,Arial,sans-serif;max-width:1100px;margin:auto;padding:16px;background:#f3f7fb;color:#17324d;border-radius:12px">
+  <header style="background:#075b78;color:white;padding:22px;border-radius:12px;text-align:center">
+    <h2 style="margin:0">مختبر التميز الطبي التخصصي</h2>
+    <p>نظام إدارة المرضى والفحوصات المخبرية</p>
+    <div id="lab-date"></div>
+  </header>
+
+  <section style="background:white;padding:18px;margin-top:15px;border-radius:12px">
+    <h3>تسجيل مريض جديد</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+      <label>اسم المريض
+        <input id="patient-name" placeholder="اسم المريض" style="width:100%;padding:11px;box-sizing:border-box">
+      </label>
+      <label>العمر
+        <input id="patient-age" type="number" placeholder="العمر" style="width:100%;padding:11px;box-sizing:border-box">
+      </label>
+      <label>النوع
+        <select id="patient-sex" style="width:100%;padding:11px">
+          <option value="">اختياري</option>
+          <option>ذكر</option>
+          <option>أنثى</option>
+        </select>
+      </label>
+      <label>رقم الهاتف
+        <input id="patient-phone" placeholder="اختياري" style="width:100%;padding:11px;box-sizing:border-box">
+      </label>
+    </div>
+  </section>
+
+  <section style="background:white;padding:18px;margin-top:15px;border-radius:12px">
+    <h3>اختيار الفحوصات</h3>
+    <input id="test-search" placeholder="ابحث عن الفحص..." style="width:100%;padding:12px;box-sizing:border-box;margin-bottom:12px">
+    <div id="test-list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px"></div>
+  </section>
+
+  <section style="background:white;padding:18px;margin-top:15px;border-radius:12px">
+    <h3>الفحوصات المختارة</h3>
+    <div id="selected-tests">لم يتم اختيار فحوصات بعد</div>
+    <button id="save-patient" style="background:#087b66;color:white;padding:13px 22px;border:0;border-radius:8px;margin-top:18px;width:100%;font-size:16px">حفظ تسجيل المريض</button>
+    <p id="message" role="status"></p>
+  </section>
+
+  <section style="background:white;padding:18px;margin-top:15px;border-radius:12px">
+    <h3>سجل المرضى</h3>
+    <input id="record-search" placeholder="ابحث بالاسم أو الرقم التسلسلي..." style="width:100%;padding:12px;box-sizing:border-box">
+    <div id="records" style="overflow-x:auto;margin-top:12px"></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  const root=document.getElementById('lab-system');
+  if(!root || root.dataset.ready) return;
+  root.dataset.ready='1';
+
+  const $=id=>root.querySelector('#'+id);
+  const tests=[
+    'CBC','ESR','Blood Group','Hb','Malaria','Widal Test',
+    'Urine Analysis','Stool Analysis','Pregnancy Test',
+    'Blood Sugar','Random Blood Sugar','Fasting Blood Sugar',
+    'Creatinine','Urea','Uric Acid','ALT','AST',
+    'Bilirubin','Cholesterol','Triglycerides',
+    'HIV','HBsAg','HCV','CRP','RF','ASO'
+  ];
+
+  let selected=[];
+  let records=[];
+  try{records=JSON.parse(localStorage.getItem('lab_records')||'[]')}catch(e){records=[]}
+
+  $('lab-date').textContent=new Date().toLocaleDateString('ar');
+
+  function renderTests(){
+    const q=$('test-search').value.toLowerCase();
+    $('test-list').innerHTML='';
+    tests.filter(t=>t.toLowerCase().includes(q)).forEach(t=>{
+      const label=document.createElement('label');
+      label.style.cssText='padding:10px;background:#eef5f8;border-radius:7px';
+      const cb=document.createElement('input');
+      cb.type='checkbox';
+      cb.checked=selected.includes(t);
+      cb.addEventListener('change',()=>{
+        if(cb.checked)selected.push(t);
+        else selected=selected.filter(x=>x!==t);
+        renderSelected();
+      });
+      label.append(cb,document.createTextNode(' '+t));
+      $('test-list').append(label);
+    });
+  }
+
+  function renderSelected(){
+    $('selected-tests').textContent=selected.length
+      ? selected.join(' ، ')
+      : 'لم يتم اختيار فحوصات بعد';
+  }
+
+  function save(){
+    const name=$('patient-name').value.trim();
+    if(!name){$('message').textContent='يرجى إدخال اسم المريض';return}
+    if(!selected.length){$('message').textContent='يرجى اختيار فحص واحد على الأقل';return}
+
+    const next=records.reduce((m,r)=>Math.max(m,Number(r.serial)||0),0)+1;
+    const record={
+      serial:next,
+      name,
+      age:$('patient-age').value,
+      sex:$('patient-sex').value,
+      phone:$('patient-phone').value,
+      tests:[...selected],
+      date:new Date().toLocaleString()
+    };
+
+    records.unshift(record);
+    try{
+      localStorage.setItem('lab_records',JSON.stringify(records));
+    }catch(e){
+      records.shift();
+      $('message').textContent='تعذر الحفظ في الجهاز. تحقق من مساحة التخزين.';
+      return;
+    }
+
+    $('message').textContent='تم حفظ المريض بنجاح. الرقم التسلسلي: '+next;
+    ['patient-name','patient-age','patient-phone'].forEach(id=>$(id).value='');
+    $('patient-sex').value='';
+    selected=[];
+    renderTests();
+    renderSelected();
+    renderRecords();
+  }
+
+  function renderRecords(){
+    const q=$('record-search').value.trim().toLowerCase();
+    const filtered=records.filter(r=>
+      String(r.name).toLowerCase().includes(q)||
+      String(r.serial).includes(q)
+    );
+    if(!filtered.length){
+      $('records').textContent='لا توجد سجلات مطابقة';
+      return;
+    }
+    const table=document.createElement('table');
+    table.style.cssText='width:100%;border-collapse:collapse;text-align:right';
+    const head=document.createElement('tr');
+    ['الرقم','اسم المريض','العمر','الفحوصات','التاريخ'].forEach(x=>{
+      const th=document.createElement('th');
+      th.textContent=x;
+      th.style.cssText='padding:10px;background:#e6f0f5;border-bottom:1px solid #ccc';
+      head.append(th);
+    });
+    table.append(head);
+    filtered.forEach(r=>{
+      const tr=document.createElement('tr');
+      [r.serial,r.name,r.age||'-',r.tests.join('، '),r.date].forEach(x=>{
+        const td=document.createElement('td');
+        td.textContent=x;
+        td.style.cssText='padding:10px;border-bottom:1px solid #ddd';
+        tr.append(td);
+      });
+      table.append(tr);
+    });
+    $('records').replaceChildren(table);
+  }
+
+  $('test-search').addEventListener('input',renderTests);
+  $('record-search').addEventListener('input',renderRecords);
+  $('save-patient').addEventListener('click',save);
+
+  renderTests();
+  renderSelected();
+  renderRecords();
+})();
+</script>
