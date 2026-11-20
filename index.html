@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -98,7 +99,6 @@ body *{visibility:hidden!important}
 </main>
 <div id="printArea"></div>
 <script>
-  
 const STORAGE_KEY = "labVisits";
 
 const sections = [
@@ -204,6 +204,32 @@ function renderTests() {
   });
 }
 
+      checkbox.type = "checkbox";
+      checkbox.checked = selectedTests.includes(test);
+
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) {
+          if (!selectedTests.includes(test)) selectedTests.push(test);
+        } else {
+          selectedTests = selectedTests.filter(name => name !== test);
+        }
+        renderTests();
+        renderFields();
+      });
+
+      const name = document.createElement("span");
+      name.textContent = test;
+
+      label.appendChild(checkbox);
+      label.appendChild(name);
+      item.appendChild(label);
+      testsBox.appendChild(item);
+    });
+
+    container.appendChild(testsBox);
+  });
+}
+
 function renderFields() {
   const container = document.getElementById("resultFields");
   container.innerHTML = "";
@@ -253,248 +279,14 @@ function renderFields() {
 }
 
 function collectResults() {
-function clearForm() {
-  document.getElementById("patient").value = "";
-  document.getElementById("age").value = "";
-  document.getElementById("gender").value = "";
-  document.getElementById("phone").value = "";
-  document.getElementById("doctor").value = "";
-  document.getElementById("notes").value = "";
-  selectedTests = [];
-  currentVisit = null;
-  document.getElementById("visitDate").value = new Date().toISOString().slice(0, 10);
-  renderTests();
-  renderFields();
-}
-
-function saveVisit() {
-  const patient = document.getElementById("patient").value.trim();
-
-  if (!patient) {
-    alert("يرجى كتابة اسم المريض أولاً.");
-    document.getElementById("patient").focus();
-    return;
-  }
-
-  if (selectedTests.length === 0) {
-    alert("يرجى اختيار فحص واحد على الأقل.");
-    return;
-  }
-
-  const visits = getVisits();
-  const results = collectResults();
-
-  const visit = {
-    id: Date.now(),
-    number: visits.length
-      ? Math.max(...visits.map(v => Number(v.number) || 0)) + 1
-      : 1,
-    patient,
-    age: document.getElementById("age").value.trim(),
-    gender: document.getElementById("gender").value,
-    phone: document.getElementById("phone").value.trim(),
-    doctor: document.getElementById("doctor").value.trim(),
-    date: document.getElementById("visitDate").value,
-    notes: document.getElementById("notes").value.trim(),
-    results
-  };
-
-  try {
-    visits.unshift(visit);
-    saveVisits(visits);
-
-    const saved = getVisits().some(v => v.id === visit.id);
-
-    if (!saved) {
-      throw new Error("لم يتم تأكيد حفظ الزيارة.");
-    }
-
-    currentVisit = visit;
-    const message = document.getElementById("saveMessage");
-    message.textContent = "تم حفظ الزيارة بنجاح. رقم الزيارة: " + visit.number;
-    message.style.display = "block";
-
-    renderHistory();
-
-  } catch (error) {
-    alert("تعذر حفظ الزيارة. تأكد من مساحة التخزين في المتصفح.");
-  }
-}
-
-function renderHistory() {
-  const container = document.getElementById("visitHistory");
-  const query = document.getElementById("search").value.trim().toLowerCase();
-  const visits = getVisits();
-
-  container.innerHTML = "";
-
-  const filtered = visits.filter(v =>
-    String(v.patient || "").toLowerCase().includes(query) ||
-    String(v.number || "").includes(query) ||
-    String(v.phone || "").includes(query)
-  );
-
-  if (!filtered.length) {
-    container.innerHTML = '<p class="muted">لا توجد زيارات مطابقة.</p>';
-    return;
-  }
-
-  filtered.forEach(visit => {
-    const box = document.createElement("div");
-    box.className = "visit";
-
-    const heading = document.createElement("h3");
-    heading.textContent = visit.patient;
-
-    const info = document.createElement("p");
-    info.className = "muted";
-    info.textContent =
-      "رقم الزيارة: " + visit.number +
-      " | التاريخ: " + (visit.date || "") +
-      " | الهاتف: " + (visit.phone || "");
-
-    const tests = document.createElement("p");
-    tests.textContent = "الفحوصات: " +
-      (visit.results || []).map(r => r.name).join("، ");
-
-    const printButton = document.createElement("button");
-    printButton.textContent = "طباعة التقرير";
-    printButton.addEventListener("click", () => printVisit(visit));
-
-    const deleteButton = document.createElement("button");
-    deleteButton.textContent = "حذف الزيارة";
-    deleteButton.className = "danger";
-    deleteButton.style.marginRight = "8px";
-    deleteButton.addEventListener("click", () => {
-      if (!confirm("هل تريد حذف هذه الزيارة؟")) return;
-      saveVisits(getVisits().filter(v => v.id !== visit.id));
-      renderHistory();
+  return selectedTests.map(test => {
+    const values = {};
+    document.querySelectorAll("#resultFields input[data-test]").forEach(input => {
+      if (input.dataset.test === test) values[input.dataset.field] = input.value.trim();
     });
-
-    box.append(heading, info, tests, printButton, deleteButton);
-    container.appendChild(box);
+    return { name: test, ...values };
   });
 }
-
-function printVisit(visit) {
-  const area = document.getElementById("printArea");
-
-  const rows = (visit.results || []).map(result => {
-    const section = getTestSection(result.name);
-    const color = section ? section.color : "#2563a6";
-
-    return `
-      <tr>
-        <td style="color:${color};font-weight:bold">${result.name}</td>
-        <td>${result.result || ""}</td>
-        <td>${result.unit || ""}</td>
-        <td>${result.reference || ""}</td>
-      </tr>`;
-  }).join("");
-
-  area.innerHTML = `
-    <div style="font-family:Arial,Tahoma,sans-serif;direction:rtl;color:#222">
-      <div style="text-align:center;border-bottom:3px solid #087b91;padding-bottom:12px">
-        <h1 style="color:#075477">مختبر التميز الطبي التخصصي</h1>
-        <h3>Laboratory Test Report</h3>
-      </div>
-      <h3>بيانات المريض</h3>
-      <p>اسم المريض: ${escapeHTML(visit.patient)}</p>
-      <p>رقم الزيارة: ${visit.number} | التاريخ: ${escapeHTML(visit.date || "")}</p>
-      <p>العمر: ${escapeHTML(visit.age || "")} | النوع: ${escapeHTML(visit.gender || "")}</p>
-      <p>الهاتف: ${escapeHTML(visit.phone || "")} | الطبيب المحول: ${escapeHTML(visit.doctor || "")}</p>
-      <table>
-        <thead>
-          <tr><th>Test</th><th>Result</th><th>Unit</th><th>Reference Range</th></tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <p style="margin-top:20px">ملاحظات: ${escapeHTML(visit.notes || "")}</p>
-      <div style="margin-top:65px;display:flex;justify-content:space-between">
-        <span>توقيع المختص: ______________</span>
-        <span>الختم: ______________</span>
-      </div>
-    </div>`;
-
-  window.print();
-}
-
-function escapeHTML(value) {
-  return String(value).replace(/[&<>"']/g, char => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  })[char]);
-}
-
-document.querySelectorAll(".tab").forEach(button => {
-  button.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll("main section").forEach(s => s.classList.remove("active"));
-
-    button.classList.add("active");
-    document.getElementById(button.dataset.tab).classList.add("active");
-
-    if (button.dataset.tab === "history") renderHistory();
-  });
-});
-
-document.getElementById("saveVisit").addEventListener("click", saveVisit);
-document.getElementById("search").addEventListener("input", renderHistory);
-
-document.getElementById("printCurrent").addEventListener("click", () => {
-  if (currentVisit) {
-    printVisit(currentVisit);
-  } else {
-    alert("احفظ الزيارة أولاً حتى تتمكن من طباعة التقرير.");
-  }
-});
-
-document.getElementById("exportBtn").addEventListener("click", () => {
-  const data = JSON.stringify(getVisits(), null, 2);
-  const blob = new Blob([data], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "lab-visits-backup.json";
-  link.click();
-  URL.revokeObjectURL(url);
-});
-
-document.getElementById("importFile").addEventListener("change", event => {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-
-  reader.onload = () => {
-    try {
-      const imported = JSON.parse(reader.result);
-      if (!Array.isArray(imported)) throw new Error("Invalid backup");
-
-      if (!confirm("سيتم استبدال سجل الزيارات الحالي بالنسخة المستعادة. هل توافق؟")) return;
-
-      saveVisits(imported);
-      renderHistory();
-      alert("تمت استعادة النسخة الاحتياطية بنجاح.");
-    } catch (error) {
-      alert("ملف النسخة الاحتياطية غير صالح.");
-    }
-  };
-
-  reader.readAsText(file);
-});
-
-document.getElementById("visitDate").value = new Date().toISOString().slice(0, 10);
-
-renderTests();
-renderFields();
-renderHistory();
-</script>
-</body>
-</html>
 
 function clearForm() {
   document.getElementById("patient").value = "";
