@@ -1,330 +1,293 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>مختبر التميز الطبي</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مختبر التميز الطبي التخصصي</title>
 <style>
 *{box-sizing:border-box}
-body{
- margin:0;
- font-family:Arial,sans-serif;
- background:#eef4f8;
- color:#173047;
-}
-header{
- background:linear-gradient(135deg,#075b78,#087f8c);
- color:white;
- padding:22px 15px;
- text-align:center;
-}
-header h1{margin:0 0 8px;font-size:24px}
-header p{margin:0;font-size:14px}
-.container{max-width:900px;margin:auto;padding:15px}
-.card{
- background:white;
- border-radius:14px;
- padding:16px;
- margin-bottom:15px;
- box-shadow:0 3px 12px #0001;
-}
-h2{color:#08778b;font-size:19px}
-input,select,button{
- width:100%;
- padding:12px;
- margin:6px 0;
- border-radius:9px;
- border:1px solid #ccd9e2;
- font-size:16px;
-}
-button{
- border:0;
- background:#087f8c;
- color:white;
- font-weight:bold;
- cursor:pointer;
-}
-button.secondary{background:#38566c}
-button.danger{background:#c0392b}
-.grid{
- display:grid;
- grid-template-columns:1fr 1fr;
- gap:8px;
-}
-table{
- width:100%;
- border-collapse:collapse;
- font-size:14px;
-}
-th,td{
- border:1px solid #dce5eb;
- padding:9px;
- text-align:center;
-}
-th{background:#e2f2f5}
-.table-wrap{overflow-x:auto}
-.small{font-size:13px;color:#607687}
-@media(max-width:550px){
- .grid{grid-template-columns:1fr}
-}
+body{margin:0;background:#f2f6f9;color:#203040;font-family:Tahoma,Arial,sans-serif}
+header{background:#075477;color:white;text-align:center;padding:22px 12px}
+header h1{margin:0 0 8px;font-size:22px}
+header p{margin:0;font-size:13px}
+main{max-width:1050px;margin:18px auto;padding:0 12px}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+button{border:0;border-radius:8px;padding:10px 14px;background:#08749a;color:white;cursor:pointer;font-size:14px}
+nav button{background:#dcebf1;color:#17445b}
+nav button.active{background:#075477;color:white}
+section{display:none;background:white;border:1px solid #d8e2e8;border-radius:12px;padding:16px;margin-bottom:14px}
+section.active{display:block}
+h2{font-size:18px;color:#075477;margin:0 0 14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+label{display:block;font-size:13px;color:#425466}
+input,select,textarea{width:100%;margin-top:6px;padding:10px;border:1px solid #cbd8df;border-radius:8px;font:inherit;background:white}
+textarea{min-height:65px}
+.tests{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin:12px 0}
+.test{border:1px solid #d8e2e8;padding:9px;border-radius:8px;background:#f9fcfd}
+.test label{display:flex;gap:8px;align-items:center}
+.test input{width:auto;margin:0}
+.test-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:10px 0;padding:10px;background:#f5f9fb;border-radius:8px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.danger{background:#b42318}
+.muted{color:#647786;font-size:13px}
+.visit{border:1px solid #d8e2e8;border-radius:9px;padding:12px;margin:9px 0}
+.visit h3{margin:0 0 6px;font-size:15px}
+@media print{nav,.actions,.no-print{display:none!important}body{background:white}section{display:block;border:0}}
 </style>
 </head>
-
 <body>
-
 <header>
 <h1>مختبر التميز الطبي التخصصي</h1>
-<p>نظام إدارة المختبر والنتائج الطبية</p>
+<p>نظام تسجيل المرضى والزيارات ونتائج الفحوصات</p>
 </header>
-
-<div class="container">
-
-<div class="card">
-<h2>تسجيل نتيجة فحص جديدة</h2>
-
+<main>
+<nav class="no-print">
+<button class="tab active" data-tab="entry">تسجيل زيارة</button>
+<button class="tab" data-tab="history">سجل الزيارات</button>
+<button class="tab" data-tab="backup">النسخ الاحتياطي</button>
+</nav>
+<section id="entry" class="active">
+<h2>تسجيل زيارة جديدة</h2>
 <div class="grid">
-<input id="patient" placeholder="اسم المريض">
-<input id="patientId" placeholder="رقم الملف">
-<input id="age" placeholder="العمر">
-<select id="gender">
-<option value="">الجنس</option>
-<option>ذكر</option>
-<option>أنثى</option>
-</select>
+<label>اسم المريض<input id="patient" placeholder="الاسم الكامل"></label>
+<label>العمر<input id="age" placeholder="العمر"></label>
+<label>النوع<select id="gender"><option value="">اختر</option><option>ذكر</option><option>أنثى</option></select></label>
+<label>رقم الهاتف<input id="phone"></label>
+<label>الطبيب المحوِّل<input id="doctor"></label>
+<label>تاريخ الزيارة<input id="visitDate" type="date"></label>
 </div>
-
-<input id="doctor" placeholder="اسم الطبيب">
-
-<div class="grid">
-<input id="test" placeholder="اسم الفحص">
-<input id="result" placeholder="النتيجة">
-<input id="unit" placeholder="الوحدة">
-<input id="normal" placeholder="المعدل الطبيعي">
+<h2 style="margin-top:20px">اختيار الفحوصات</h2>
+<div id="testList" class="tests"></div>
+<div id="resultFields"></div>
+<label>ملاحظات الزيارة<textarea id="notes"></textarea></label>
+<div class="actions">
+<button id="saveVisit">حفظ الزيارة</button>
+<button type="button" onclick="window.print()">طباعة</button>
 </div>
-
-<input id="date" type="date">
-
-<button onclick="addResult()">حفظ النتيجة</button>
+<p class="muted">يُنشأ رقم الزيارة تلقائياً عند الحفظ. احتفظ بنسخة احتياطية بانتظام.</p>
+</section>
+<section id="history">
+<h2>سجل الزيارات</h2>
+<input id="search" placeholder="ابحث باسم المريض أو رقم الزيارة أو الهاتف">
+<div id="visitHistory"></div>
+</section>
+<section id="backup">
+<h2>النسخ الاحتياطي والاستعادة</h2>
+<p>يمكنك تنزيل نسخة من بيانات هذا المتصفح أو استعادة نسخة سابقة.</p>
+<div class="actions">
+<button id="exportBtn">تنزيل نسخة احتياطية</button>
+<label>استعادة ملف JSON<input id="importFile" type="file" accept=".json,application/json"></label>
 </div>
+<p class="muted">البيانات محفوظة محلياً في هذا المتصفح على هذا الجهاز، ولا تُشارك تلقائياً بين الأجهزة.</p>
+</section>
+</main><script>
+const catalog=[
+["أمراض الدم","CBC"],
+["أمراض الدم","ESR"],
+["أمراض الدم","Hb"],
+["أمراض الدم","Blood Group"],
+["الكيمياء السريرية","Blood Glucose"],
+["الكيمياء السريرية","Urea"],
+["الكيمياء السريرية","Creatinine"],
+["الكيمياء السريرية","Uric Acid"],
+["الكيمياء السريرية","ALT"],
+["الكيمياء السريرية","AST"],
+["الكيمياء السريرية","Bilirubin"],
+["الكيمياء السريرية","Lipid Profile"],
+["المناعة والسيرولوجي","CRP"],
+["المناعة والسيرولوجي","ASO"],
+["المناعة والسيرولوجي","RF"],
+["المناعة والسيرولوجي","Widal"],
+["المناعة والسيرولوجي","HBsAg"],
+["المناعة والسيرولوجي","HCV"],
+["الطفيليات والبول","Malaria Parasite"],
+["الطفيليات والبول","Stool Analysis"],
+["الطفيليات والبول","Urine Analysis"],
+["الفحوصات السريعة","Pregnancy Test"],
+["الفحوصات السريعة","Typhoid Rapid"],
+["الفحوصات السريعة","Dengue NS1"]
+];
 
-<div class="card">
-<h2>النتائج المسجلة</h2>
+const $=id=>document.getElementById(id);
+let visits=JSON.parse(localStorage.getItem("labVisits")||"[]");
 
-<input id="search" placeholder="بحث عن مريض أو فحص..." oninput="displayResults()">
+$("visitDate").value=new Date().toISOString().slice(0,10);
 
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>المريض</th>
-<th>الفحص</th>
-<th>النتيجة</th>
-<th>الوحدة</th>
-<th>التاريخ</th>
-<th>حذف</th>
-</tr>
-</thead>
-<tbody id="records"></tbody>
+function esc(s){
+return String(s??"").replace(/[&<>"']/g,c=>({
+"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+}[c]));
+}
+
+function renderTests(){
+$("testList").innerHTML=catalog.map((t,i)=>
+`<div class="test">
+<label>
+<input type="checkbox" class="testcheck" value="${i}" onchange="renderFields()">
+${esc(t[0])} — ${esc(t[1])}
+</label>
+</div>`
+).join("");
+}
+
+function renderFields(){
+const chosen=[...document.querySelectorAll(".testcheck:checked")];
+$("resultFields").innerHTML=chosen.map(c=>{
+let t=catalog[+c.value];
+return `<div class="test-fields">
+<strong>${esc(t[1])}</strong>
+<label>النتيجة<input data-result="${c.value}" placeholder="النتيجة"></label>
+<label>الوحدة<input data-unit="${c.value}" placeholder="الوحدة"></label>
+<label>المعدل المرجعي<input data-range="${c.value}" placeholder="المعدل المرجعي"></label>
+</div>`;
+}).join("");
+}
+
+function persist(){
+localStorage.setItem("labVisits",JSON.stringify(visits));
+}
+
+function renderHistory(){
+let q=$("search").value.trim().toLowerCase();
+let list=visits.filter(v=>
+(v.patient+" "+v.id+" "+v.phone).toLowerCase().includes(q)
+).sort((a,b)=>b.created-a.created);
+
+$("visitHistory").innerHTML=list.length?list.map(v=>
+`<div class="visit">
+<h3>${esc(v.patient)} — ${esc(v.id)}</h3>
+<div class="muted">${esc(v.date)} | ${esc(v.age)} | ${esc(v.gender)} | ${esc(v.phone)}</div>
+<p>${v.tests.map(t=>esc(t.name)+": "+esc(t.result)).join("، ")}</p>
+<div class="actions no-print">
+<button onclick="printVisit('${v.id}')">طباعة</button>
+<button class="danger" onclick="deleteVisit('${v.id}')">حذف</button>
+</div>
+</div>`
+).join(""):"<p class='muted'>لا توجد زيارات مطابقة.</p>";
+}
+
+function deleteVisit(id){
+if(confirm("هل تريد حذف هذه الزيارة؟")){
+visits=visits.filter(v=>v.id!==id);
+persist();
+renderHistory();
+}
+}function printVisit(id){
+let v=visits.find(x=>x.id===id);
+if(!v)return;
+let w=window.open("","_blank");
+w.document.write(`
+<html lang="ar" dir="rtl">
+<meta charset="UTF-8">
+<body style="font-family:Tahoma;padding:25px">
+<h2>مختبر التميز الطبي التخصصي</h2>
+<hr>
+<h3>تقرير نتائج الفحوصات</h3>
+<p>رقم الزيارة: ${esc(v.id)} | التاريخ: ${esc(v.date)}</p>
+<p>المريض: ${esc(v.patient)} | العمر: ${esc(v.age)} | النوع: ${esc(v.gender)}</p>
+<table border="1" cellpadding="8" cellspacing="0" width="100%">
+<tr><th>الفحص</th><th>النتيجة</th><th>الوحدة</th><th>المعدل المرجعي</th></tr>
+${v.tests.map(t=>`
+<tr><td>${esc(t.name)}</td><td>${esc(t.result)}</td>
+<td>${esc(t.unit)}</td><td>${esc(t.range)}</td></tr>
+`).join("")}
 </table>
-</div>
-</div>
-
-<div class="card">
-<h2>النسخ الاحتياطي والبيانات</h2>
-
-<button onclick="backup()">تنزيل نسخة احتياطية</button>
-
-<button class="secondary" onclick="document.getElementById('restoreFile').click()">
-استعادة نسخة احتياطية
-</button>
-
-<input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restore(event)">
-
-<button class="secondary" onclick="window.print()">طباعة</button>
-
-<p class="small">
-يتم حفظ البيانات على هذا الجهاز تلقائياً.
-يرجى تنزيل نسخة احتياطية بصورة دورية.
-</p>
-</div>
-
-</div>
-
-<script>
-let data = JSON.parse(localStorage.getItem("labRecords") || "[]");
-
-document.getElementById("date").value =
-new Date().toISOString().slice(0,10);
-
-function save(){
- localStorage.setItem("labRecords",JSON.stringify(data));
- displayResults();
+<p>ملاحظات: ${esc(v.notes)}</p>
+<p style="margin-top:50px">توقيع المختبر: __________________</p>
+<script>window.print()<\/script>
+</body></html>
+`);
+w.document.close();
 }
 
-function addResult(){
- let patient=document.getElementById("patient").value.trim();
- let test=document.getElementById("test").value.trim();
- let result=document.getElementById("result").value.trim();
+$("saveVisit").onclick=()=>{
+let patient=$("patient").value.trim();
+let selected=[...document.querySelectorAll(".testcheck:checked")];
 
- if(!patient || !test || !result){
-  alert("يرجى إدخال اسم المريض والفحص والنتيجة");
-  return;
- }
+if(!patient){alert("أدخل اسم المريض أولاً");return}
+if(!selected.length){alert("اختر فحصاً واحداً على الأقل");return}
 
- let item={
-  patient:patient,
-  patientId:document.getElementById("patientId").value,
-  age:document.getElementById("age").value,
-  gender:document.getElementById("gender").value,
-  doctor:document.getElementById("doctor").value,
-  test:test,
-  result:result,
-  unit:document.getElementById("unit").value,
-  normal:document.getElementById("normal").value,
-  date:document.getElementById("date").value
- };
+let tests=selected.map(c=>{
+let i=c.value;
+return {
+name:catalog[+i][1],
+section:catalog[+i][0],
+result:document.querySelector(`[data-result="${i}"]`).value,
+unit:document.querySelector(`[data-unit="${i}"]`).value,
+range:document.querySelector(`[data-range="${i}"]`).value
+};
+});
 
- data.unshift(item);
- save();
+let id="LAB-"+new Date().getFullYear()+"-"+String(Date.now()).slice(-7);
 
- alert("تم حفظ النتيجة بنجاح");
+visits.push({
+id,
+patient,
+age:$("age").value,
+gender:$("gender").value,
+phone:$("phone").value,
+doctor:$("doctor").value,
+date:$("visitDate").value,
+notes:$("notes").value,
+tests,
+created:Date.now()
+});
 
- document.getElementById("patient").value="";
- document.getElementById("patientId").value="";
- document.getElementById("age").value="";
- document.getElementById("doctor").value="";
- document.getElementById("test").value="";
- document.getElementById("result").value="";
- document.getElementById("unit").value="";
- document.getElementById("normal").value="";
+persist();
+alert("تم حفظ الزيارة برقم "+id);
+
+["patient","age","gender","phone","doctor","notes"].forEach(x=>$(x).value="");
+document.querySelectorAll(".testcheck").forEach(c=>c.checked=false);
+renderFields();
+renderHistory();
+};
+
+$("search").oninput=renderHistory;
+
+$("exportBtn").onclick=()=>{
+let blob=new Blob([JSON.stringify(visits,null,2)],{type:"application/json"});
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="lab-backup.json";
+a.click();
+URL.revokeObjectURL(a.href);
+};
+
+$("importFile").onchange=e=>{
+let f=e.target.files[0];
+if(!f)return;
+let r=new FileReader();
+r.onload=()=>{
+try{
+let data=JSON.parse(r.result);
+if(!Array.isArray(data))throw Error();
+if(confirm("ستُستبدل البيانات الحالية بالنسخة المختارة. هل تتابع؟")){
+visits=data;
+persist();
+renderHistory();
+alert("تمت الاستعادة");
 }
-
-function displayResults(){
- let search=document.getElementById("search").value.toLowerCase();
- let records=document.getElementById("records");
-
- records.innerHTML="";
-
- data.forEach((item,index)=>{
-  let text=(item.patient+" "+item.test+" "+item.patientId).toLowerCase();
-
-  if(text.includes(search)){
-   let row=records.insertRow();
-
-   row.insertCell().textContent=item.patient;
-   row.insertCell().textContent=item.test;
-   row.insertCell().textContent=item.result;
-   row.insertCell().textContent=item.unit;
-   row.insertCell().textContent=item.date;
-
-   let btn=document.createElement("button");
-   btn.textContent="حذف";
-   btn.className="danger";
-   btn.onclick=()=>removeResult(index);
-
-   row.insertCell().appendChild(btn);
-  }
- });
+}catch(_){
+alert("ملف النسخة الاحتياطية غير صالح");
 }
+};
+r.readAsText(f);
+};
 
-function removeResult(index){
- if(confirm("هل تريد حذف هذه النتيجة؟")){
-  data.splice(index,1);
-  save();
- }
-}
+document.querySelectorAll(".tab").forEach(b=>{
+b.onclick=()=>{
+document.querySelectorAll(".tab").forEach(x=>
+x.classList.toggle("active",x===b)
+);
+document.querySelectorAll("main section").forEach(s=>
+s.classList.toggle("active",s.id===b.dataset.tab)
+);
+if(b.dataset.tab==="history")renderHistory();
+};
+});
 
-function backup(){
- let file=new Blob(
-  [JSON.stringify(data,null,2)],
-  {type:"application/json"}
- );
-
- let a=document.createElement("a");
- a.href=URL.createObjectURL(file);
- a.download="Lab_Backup_"+new Date().toISOString().slice(0,10)+".json";
- a.click();
-}
-
-function restore(event){
- let file=event.target.files[0];
- if(!file)return;
-
- let reader=new FileReader();
-
- reader.onload=function(e){
-  try{
-   let saved=JSON.parse(e.target.result);
-
-   if(!Array.isArray(saved)){
-    alert("الملف غير صالح");
-    return;
-   }
-
-   if(confirm("هل تريد استعادة البيانات؟")){
-    data=saved;
-    save();
-    alert("تمت استعادة البيانات بنجاح");
-   }
-  }catch{
-   alert("تعذر قراءة الملف");
-  }
- };
-
- reader.readAsText(file);
-}
-
-displayResults();
-</script>
-
-
-<div class="card" id="patientHistory">
-<h2>ملف المريض والنتائج السابقة</h2>
-<input id="historySearch" placeholder="ابحث باسم المريض أو رقم الملف">
-<button onclick="searchPatientHistory()">عرض سجل المريض</button>
-<div id="historyResults"></div>
-</div>
-
-<script>
-function searchPatientHistory(){
- const q=document.getElementById("historySearch").value.trim().toLowerCase();
- const out=document.getElementById("historyResults");
- out.innerHTML="";
-
- if(!q){
-  out.textContent="يرجى إدخال اسم المريض أو رقم الملف";
-  return;
- }
-
- const matches=data.filter(item =>
-  String(item.patient || "").toLowerCase().includes(q) ||
-  String(item.patientId || "").toLowerCase().includes(q)
- );
-
- if(!matches.length){
-  out.textContent="لا توجد نتائج سابقة لهذا المريض";
-  return;
- }
-
- const table=document.createElement("table");
- table.innerHTML="<tr><th>الفحص</th><th>النتيجة</th><th>الوحدة</th><th>التاريخ</th></tr>";
-
- matches.forEach(item=>{
-  const row=table.insertRow();
-  [item.test,item.result,item.unit,item.date].forEach(value=>{
-   row.insertCell().textContent=value || "-";
-  });
- });
-
- out.appendChild(table);
-}
+renderTests();
+renderHistory();
 </script>
 </body>
- <footer style="text-align:center; padding:18px; margin-top:25px; background:#eef5f8; border-top:2px solid #168aad; color:#123;">
-  <div>مختبر التميز الطبي التخصصي</div>
-  <div>الهاتف: 0123190799</div>
-  <div>البريد الإلكتروني: Abdelmalikelshreif@gmail.com</div>
-</footer>
 </html>
