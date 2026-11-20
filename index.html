@@ -139,8 +139,10 @@ const sections = [
   "Blood Group",
   "RBS",
   "Dengue fever quantitative",
-  "ICT for malaria"
-]},
+        "ICT for malaria"
+    ]
+  },
+  {
     name: "التخثر وبنك الدم",
     color: "#b74747",
     tests: ["PT", "INR", "APTT", "Blood Group", "Rh Factor"]
@@ -211,10 +213,6 @@ function renderTests() {
     container.appendChild(testsBox);
   });
 }
-
-  });
-}
-
 function renderFields() {
   const container = document.getElementById("resultFields");
   container.innerHTML = "";
