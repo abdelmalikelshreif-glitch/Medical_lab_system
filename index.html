@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -23,28 +22,30 @@ h2{font-size:19px;color:#075477;margin:0 0 15px}
 label{display:block;font-size:14px;color:#425466}
 input,select,textarea{width:100%;margin-top:6px;padding:11px;border:1px solid #cbd8df;border-radius:8px;font:inherit;background:white}
 textarea{min-height:65px}
-.tests{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:9px;margin:12px 0}
-.test{border:1px solid #d8e2e8;padding:10px;border-radius:9px;background:#f9fcfd}
-.test label{display:flex;gap:8px;align-items:center}
-.test input{width:auto;margin:0}
+.group-title{margin:18px 0 9px;padding:10px 12px;color:white;border-radius:8px;font-size:16px}
+.tests{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:9px;margin:10px 0 16px}
+.test{border:1px solid #d8e2e8;padding:11px;border-radius:9px;background:#f9fcfd}
+.test label{display:flex;gap:9px;align-items:center;cursor:pointer;color:#263746}
+.test input{width:19px;height:19px;margin:0;accent-color:#087b91;flex-shrink:0}
+.test.selected{background:#eaf5f8;border:2px solid #087b91}
 .test-fields{border-right:6px solid var(--c);background:#f8fafc;padding:12px;margin:10px 0;border-radius:9px}
 .fields-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px;margin-top:8px}
 .visit{border:1px solid #d8e2e8;border-radius:10px;padding:13px;margin:10px 0}
 .visit h3{margin:0 0 7px}
 .muted{color:#647786;font-size:13px}
 .danger{background:#b42318}
+.success{background:#e8f7ed;color:#176b36;padding:12px;border-radius:8px;margin:12px 0;display:none}
 table{width:100%;border-collapse:collapse;margin-top:12px}
 th,td{border:1px solid #d5dfe5;padding:10px;text-align:center}
 th{background:#eaf1f5;color:#17445b}
 #printArea{display:none}
-@media(max-width:600px){header h1{font-size:19px}section{padding:12px}}
+@media(max-width:600px){header h1{font-size:19px}section{padding:12px}.tests{grid-template-columns:repeat(2,minmax(0,1fr))}.test{padding:9px}}
 @media print{
 @page{size:A4 portrait;margin:12mm}
 body{background:white}
 body *{visibility:hidden!important}
 #printArea,#printArea *{visibility:visible!important}
 #printArea{display:block!important;position:absolute;right:0;top:0;width:100%;background:white}
-.no-print{display:none!important}
 }
 </style>
 </head>
@@ -65,20 +66,21 @@ body *{visibility:hidden!important}
 <label>اسم المريض<input id="patient" placeholder="الاسم الكامل"></label>
 <label>العمر<input id="age" placeholder="العمر"></label>
 <label>النوع<select id="gender"><option value="">اختر</option><option>ذكر</option><option>أنثى</option></select></label>
-<label>رقم الهاتف<input id="phone"></label>
+<label>رقم الهاتف<input id="phone" inputmode="tel"></label>
 <label>الطبيب المحوِّل<input id="doctor"></label>
 <label>تاريخ الزيارة<input id="visitDate" type="date"></label>
 </div>
-<h2 style="margin-top:22px">اختيار الفحوصات</h2>
-<input id="testSearch" placeholder="ابحث عن اسم الفحص">
-<div id="testList" class="tests"></div>
-<h2>إدخال نتائج الفحوصات</h2>
-<div id="resultFields"></div>
+<h2 style="margin-top:24px">اختر الفحوصات المطلوبة</h2>
+<p class="muted">الفحوصات ظاهرة حسب الأقسام. اضغط على مربع الفحص لاختياره، ويمكنك اختيار أكثر من فحص في الزيارة الواحدة.</p>
+<div id="testList"></div>
+<h2 style="margin-top:24px">إدخال نتائج الفحوصات</h2>
+<div id="resultFields"><p class="muted">اختر الفحوصات أولاً لتظهر خانات النتائج هنا.</p></div>
 <label>ملاحظات الزيارة<textarea id="notes"></textarea></label>
 <div class="actions" style="margin-top:15px">
-<button id="saveVisit">حفظ الزيارة</button>
-<button id="printCurrent">طباعة التقرير</button>
+<button id="saveVisit" type="button">حفظ الزيارة</button>
+<button id="printCurrent" type="button">طباعة التقرير</button>
 </div>
+<div id="saveMessage" class="success"></div>
 <p class="muted">رقم الزيارة يُنشأ تلقائياً عند الحفظ.</p>
 </section>
 <section id="history">
@@ -89,257 +91,649 @@ body *{visibility:hidden!important}
 <section id="backup">
 <h2>النسخ الاحتياطي والاستعادة</h2>
 <p>يمكنك تنزيل نسخة من بياناتك أو استعادة نسخة محفوظة سابقاً.</p>
-<div class="actions"><button id="exportBtn">تنزيل نسخة احتياطية</button></div>
+<div class="actions"><button id="exportBtn" type="button">تنزيل نسخة احتياطية</button></div>
 <label>استعادة ملف JSON<input id="importFile" type="file" accept=".json,application/json"></label>
 <p class="muted">احتفظ بنسخة احتياطية بانتظام.</p>
 </section>
 </main>
 <div id="printArea"></div>
 <script>
-const catalog=[
-["أمراض الدم","CBC"],["أمراض الدم","ESR"],["أمراض الدم","Hb"],["أمراض الدم","Blood Group"],
-["الكيمياء السريرية","Blood Glucose"],["الكيمياء السريرية","Urea"],["الكيمياء السريرية","Creatinine"],["الكيمياء السريرية","Uric Acid"],["الكيمياء السريرية","ALT"],["الكيمياء السريرية","AST"],["الكيمياء السريرية","Bilirubin"],["الكيمياء السريرية","Lipid Profile"],
-["المناعة والسيرولوجي","CRP"],["المناعة والسيرولوجي","ASO"],["المناعة والسيرولوجي","RF"],["المناعة والسيرولوجي","Widal"],["المناعة والسيرولوجي","HBsAg"],["المناعة والسيرولوجي","HCV"],
-["الأحياء الدقيقة","Urine Culture"],["الأحياء الدقيقة","Stool Culture"],
-["الطفيليات والبول","Malaria Parasite"],["الطفيليات والبول","Stool Analysis"],["الطفيليات والبول","Urine Analysis"],
-["الفحوصات السريعة","Pregnancy Test"],["الفحوصات السريعة","Typhoid Rapid"],["الفحوصات السريعة","Dengue NS1"],
-["التخثر وبنك الدم","PT"],["التخثر وبنك الدم","APTT"]
+  
+const STORAGE_KEY = "labVisits";
+
+const sections = [
+  {
+    name: "أمراض الدم",
+    color: "#2563a6",
+    tests: ["CBC", "ESR", "Blood Film", "Reticulocyte Count", "Hb Electrophoresis"]
+  },
+  {
+    name: "الكيمياء السريرية",
+    color: "#138b83",
+    tests: ["Glucose", "Urea", "Creatinine", "ALT", "AST", "Bilirubin Total", "Bilirubin Direct", "Albumin", "Total Protein", "Uric Acid", "Cholesterol", "Triglycerides", "Calcium", "Sodium", "Potassium"]
+  },
+  {
+    name: "المناعة والسيرولوجي",
+    color: "#8056a8",
+    tests: ["CRP", "ASO", "RF", "Widal Test", "H. pylori Antibody", "HCV Antibody", "HBsAg", "HIV"]
+  },
+  {
+    name: "الأحياء الدقيقة",
+    color: "#bd8127",
+    tests: ["Urine Culture", "Stool Culture", "Sputum Culture"]
+  },
+  {
+    name: "الطفيليات والبول",
+    color: "#32865c",
+    tests: ["Urine Analysis", "Stool Analysis", "Malaria Parasite", "Pregnancy Test"]
+  },
+  {
+    name: "الفحوصات السريعة",
+    color: "#477eae",
+    tests: ["Random Blood Sugar", "COVID-19 Rapid Test", "Dengue NS1"]
+  },
+  {
+    name: "التخثر وبنك الدم",
+    color: "#b74747",
+    tests: ["PT", "INR", "APTT", "Blood Group", "Rh Factor"]
+  }
 ];
-const colors={
-"أمراض الدم":"#2563a6","الكيمياء السريرية":"#138b83",
-"المناعة والسيرولوجي":"#8056a8","الأحياء الدقيقة":"#bd8127",
-"الطفيليات والبول":"#32865c","الفحوصات السريعة":"#477eae",
-"التخثر وبنك الدم":"#b74747"
-};
-const $=id=>document.getElementById(id);
-let visits=[];
-try{visits=JSON.parse(localStorage.getItem("labVisits")||"[]");if(!Array.isArray(visits))visits=[];}catch(e){visits=[];}
-$("visitDate").value=new Date().toISOString().slice(0,10);
-function esc(s){
-return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+let selectedTests = [];
+let currentVisit = null;
+
+function getVisits() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+  } catch (error) {
+    return [];
+  }
 }
-function persist(){localStorage.setItem("labVisits",JSON.stringify(visits));}
-function renderTests(){
-const q=$("testSearch").value.toLowerCase();
-$("testList").innerHTML=catalog.map((t,i)=>{
-if(!(t[0]+" "+t[1]).toLowerCase().includes(q))return "";
-return `<div class="test" style="border-right:5px solid ${colors[t[0]]}">
-<label><input type="checkbox" class="testcheck" value="${i}" onchange="renderFields()">
-<span>${esc(t[0])} — ${esc(t[1])}</span></label></div>`;
-}).join("");
+
+function saveVisits(visits) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(visits));
 }
+
+function getTestSection(testName) {
+  return sections.find(section => section.tests.includes(testName));
+}
+
+function renderTests() {
+  const container = document.getElementById("testList");
+  container.innerHTML = "";
+
+  sections.forEach((section, index) => {
+    const title = document.createElement("div");
+    title.className = "group-title";
+    title.style.background = section.color;
+    title.textContent = section.name;
+    container.appendChild(title);
+
+    const testsBox = document.createElement("div");
+    testsBox.className = "tests";
+
+    section.tests.forEach(test => {
+      const item = document.createElement("div");
+      item.className = "test" + (selectedTests.includes(test) ? " selected" : "");
+
+      const label = document.createElement("label");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = selectedTests.includes(test);
+
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) {
+          if (!selectedTests.includes(test)) selectedTests.push(test);
+        } else {
+          selectedTests = selectedTests.filter(name => name !== test);
+        }
+        renderTests();
+        renderFields();
+      });
+
+      const name = document.createElement("span");
+      name.textContent = test;
+
+      label.appendChild(checkbox);
+      label.appendChild(name);
+      item.appendChild(label);
+      testsBox.appendChild(item);
+    });
+
+    container.appendChild(testsBox);
+  });
+}
+
+function renderFields() {
+  const container = document.getElementById("resultFields");
+  container.innerHTML = "";
+
+  if (selectedTests.length === 0) {
+    container.innerHTML = '<p class="muted">اختر الفحوصات أولاً لتظهر خانات النتائج هنا.</p>';
+    return;
+  }
+
+  selectedTests.forEach(test => {
+    const section = getTestSection(test);
+    const color = section ? section.color : "#2563a6";
+
+    const box = document.createElement("div");
+    box.className = "test-fields";
+    box.style.setProperty("--c", color);
+
+    const heading = document.createElement("strong");
+    heading.textContent = test;
+    heading.style.color = color;
+    box.appendChild(heading);
+
+    const fields = document.createElement("div");
+    fields.className = "fields-grid";
+
+    [
+      ["Result", "result"],
+      ["Unit", "unit"],
+      ["Reference Range", "reference"]
+    ].forEach(([placeholder, key]) => {
+      const label = document.createElement("label");
+      label.textContent = placeholder;
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = placeholder;
+      input.dataset.test = test;
+      input.dataset.field = key;
+
+      label.appendChild(input);
+      fields.appendChild(label);
+    });
+
+    box.appendChild(fields);
+    container.appendChild(box);
+  });
+}
+
+function collectResults() {
+function clearForm() {
+  document.getElementById("patient").value = "";
+  document.getElementById("age").value = "";
+  document.getElementById("gender").value = "";
+  document.getElementById("phone").value = "";
+  document.getElementById("doctor").value = "";
+  document.getElementById("notes").value = "";
+  selectedTests = [];
+  currentVisit = null;
+  document.getElementById("visitDate").value = new Date().toISOString().slice(0, 10);
+  renderTests();
+  renderFields();
+}
+
+function saveVisit() {
+  const patient = document.getElementById("patient").value.trim();
+
+  if (!patient) {
+    alert("يرجى كتابة اسم المريض أولاً.");
+    document.getElementById("patient").focus();
+    return;
+  }
+
+  if (selectedTests.length === 0) {
+    alert("يرجى اختيار فحص واحد على الأقل.");
+    return;
+  }
+
+  const visits = getVisits();
+  const results = collectResults();
+
+  const visit = {
+    id: Date.now(),
+    number: visits.length
+      ? Math.max(...visits.map(v => Number(v.number) || 0)) + 1
+      : 1,
+    patient,
+    age: document.getElementById("age").value.trim(),
+    gender: document.getElementById("gender").value,
+    phone: document.getElementById("phone").value.trim(),
+    doctor: document.getElementById("doctor").value.trim(),
+    date: document.getElementById("visitDate").value,
+    notes: document.getElementById("notes").value.trim(),
+    results
+  };
+
+  try {
+    visits.unshift(visit);
+    saveVisits(visits);
+
+    const saved = getVisits().some(v => v.id === visit.id);
+
+    if (!saved) {
+      throw new Error("لم يتم تأكيد حفظ الزيارة.");
+    }
+
+    currentVisit = visit;
+    const message = document.getElementById("saveMessage");
+    message.textContent = "تم حفظ الزيارة بنجاح. رقم الزيارة: " + visit.number;
+    message.style.display = "block";
+
+    renderHistory();
+
+  } catch (error) {
+    alert("تعذر حفظ الزيارة. تأكد من مساحة التخزين في المتصفح.");
+  }
+}
+
+function renderHistory() {
+  const container = document.getElementById("visitHistory");
+  const query = document.getElementById("search").value.trim().toLowerCase();
+  const visits = getVisits();
+
+  container.innerHTML = "";
+
+  const filtered = visits.filter(v =>
+    String(v.patient || "").toLowerCase().includes(query) ||
+    String(v.number || "").includes(query) ||
+    String(v.phone || "").includes(query)
+  );
+
+  if (!filtered.length) {
+    container.innerHTML = '<p class="muted">لا توجد زيارات مطابقة.</p>';
+    return;
+  }
+
+  filtered.forEach(visit => {
+    const box = document.createElement("div");
+    box.className = "visit";
+
+    const heading = document.createElement("h3");
+    heading.textContent = visit.patient;
+
+    const info = document.createElement("p");
+    info.className = "muted";
+    info.textContent =
+      "رقم الزيارة: " + visit.number +
+      " | التاريخ: " + (visit.date || "") +
+      " | الهاتف: " + (visit.phone || "");
+
+    const tests = document.createElement("p");
+    tests.textContent = "الفحوصات: " +
+      (visit.results || []).map(r => r.name).join("، ");
+
+    const printButton = document.createElement("button");
+    printButton.textContent = "طباعة التقرير";
+    printButton.addEventListener("click", () => printVisit(visit));
+
+    const deleteButton = document.createElement("button");
+    deleteButton.textContent = "حذف الزيارة";
+    deleteButton.className = "danger";
+    deleteButton.style.marginRight = "8px";
+    deleteButton.addEventListener("click", () => {
+      if (!confirm("هل تريد حذف هذه الزيارة؟")) return;
+      saveVisits(getVisits().filter(v => v.id !== visit.id));
+      renderHistory();
+    });
+
+    box.append(heading, info, tests, printButton, deleteButton);
+    container.appendChild(box);
+  });
+}
+
+function printVisit(visit) {
+  const area = document.getElementById("printArea");
+
+  const rows = (visit.results || []).map(result => {
+    const section = getTestSection(result.name);
+    const color = section ? section.color : "#2563a6";
+
+    return `
+      <tr>
+        <td style="color:${color};font-weight:bold">${result.name}</td>
+        <td>${result.result || ""}</td>
+        <td>${result.unit || ""}</td>
+        <td>${result.reference || ""}</td>
+      </tr>`;
+  }).join("");
+
+  area.innerHTML = `
+    <div style="font-family:Arial,Tahoma,sans-serif;direction:rtl;color:#222">
+      <div style="text-align:center;border-bottom:3px solid #087b91;padding-bottom:12px">
+        <h1 style="color:#075477">مختبر التميز الطبي التخصصي</h1>
+        <h3>Laboratory Test Report</h3>
+      </div>
+      <h3>بيانات المريض</h3>
+      <p>اسم المريض: ${escapeHTML(visit.patient)}</p>
+      <p>رقم الزيارة: ${visit.number} | التاريخ: ${escapeHTML(visit.date || "")}</p>
+      <p>العمر: ${escapeHTML(visit.age || "")} | النوع: ${escapeHTML(visit.gender || "")}</p>
+      <p>الهاتف: ${escapeHTML(visit.phone || "")} | الطبيب المحول: ${escapeHTML(visit.doctor || "")}</p>
+      <table>
+        <thead>
+          <tr><th>Test</th><th>Result</th><th>Unit</th><th>Reference Range</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="margin-top:20px">ملاحظات: ${escapeHTML(visit.notes || "")}</p>
+      <div style="margin-top:65px;display:flex;justify-content:space-between">
+        <span>توقيع المختص: ______________</span>
+        <span>الختم: ______________</span>
+      </div>
+    </div>`;
+
+  window.print();
+}
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
+}
+
+document.querySelectorAll(".tab").forEach(button => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll("main section").forEach(s => s.classList.remove("active"));
+
+    button.classList.add("active");
+    document.getElementById(button.dataset.tab).classList.add("active");
+
+    if (button.dataset.tab === "history") renderHistory();
+  });
+});
+
+document.getElementById("saveVisit").addEventListener("click", saveVisit);
+document.getElementById("search").addEventListener("input", renderHistory);
+
+document.getElementById("printCurrent").addEventListener("click", () => {
+  if (currentVisit) {
+    printVisit(currentVisit);
+  } else {
+    alert("احفظ الزيارة أولاً حتى تتمكن من طباعة التقرير.");
+  }
+});
+
+document.getElementById("exportBtn").addEventListener("click", () => {
+  const data = JSON.stringify(getVisits(), null, 2);
+  const blob = new Blob([data], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "lab-visits-backup.json";
+  link.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("importFile").addEventListener("change", event => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    try {
+      const imported = JSON.parse(reader.result);
+      if (!Array.isArray(imported)) throw new Error("Invalid backup");
+
+      if (!confirm("سيتم استبدال سجل الزيارات الحالي بالنسخة المستعادة. هل توافق؟")) return;
+
+      saveVisits(imported);
+      renderHistory();
+      alert("تمت استعادة النسخة الاحتياطية بنجاح.");
+    } catch (error) {
+      alert("ملف النسخة الاحتياطية غير صالح.");
+    }
+  };
+
+  reader.readAsText(file);
+});
+
+document.getElementById("visitDate").value = new Date().toISOString().slice(0, 10);
+
+renderTests();
+renderFields();
+renderHistory();
 </script>
 </body>
 </html>
 
-function renderFields(){
-const chosen=[...document.querySelectorAll(".testcheck:checked")];
-$("resultFields").innerHTML=chosen.map(c=>{
-const t=catalog[+c.value];
-const color=colors[t[0]];
-return `<div class="test-fields" style="--c:${color}">
-<strong style="color:${color}">${esc(t[0])} — ${esc(t[1])}</strong>
-<div class="fields-grid">
-<label>النتيجة<input data-result="${c.value}" placeholder="النتيجة"></label>
-<label>الوحدة<input data-unit="${c.value}" placeholder="الوحدة"></label>
-<label>المعدل المرجعي<input data-range="${c.value}" placeholder="المعدل المرجعي"></label>
-</div></div>`;
-}).join("");
+function clearForm() {
+  document.getElementById("patient").value = "";
+  document.getElementById("age").value = "";
+  document.getElementById("gender").value = "";
+  document.getElementById("phone").value = "";
+  document.getElementById("doctor").value = "";
+  document.getElementById("notes").value = "";
+  selectedTests = [];
+  currentVisit = null;
+  document.getElementById("visitDate").value = new Date().toISOString().slice(0, 10);
+  renderTests();
+  renderFields();
 }
 
-function selectedResults(){
-return [...document.querySelectorAll(".testcheck:checked")].map(c=>{
-const i=c.value;
-return {
-section:catalog[+i][0],
-test:catalog[+i][1],
-result:document.querySelector(`[data-result="${i}"]`)?.value||"",
-unit:document.querySelector(`[data-unit="${i}"]`)?.value||"",
-range:document.querySelector(`[data-range="${i}"]`)?.value||""
-};
+function saveVisit() {
+  const patient = document.getElementById("patient").value.trim();
+
+  if (!patient) {
+    alert("يرجى كتابة اسم المريض أولاً.");
+    document.getElementById("patient").focus();
+    return;
+  }
+
+  if (selectedTests.length === 0) {
+    alert("يرجى اختيار فحص واحد على الأقل.");
+    return;
+  }
+
+  const visits = getVisits();
+  const results = collectResults();
+
+  const visit = {
+    id: Date.now(),
+    number: visits.length
+      ? Math.max(...visits.map(v => Number(v.number) || 0)) + 1
+      : 1,
+    patient,
+    age: document.getElementById("age").value.trim(),
+    gender: document.getElementById("gender").value,
+    phone: document.getElementById("phone").value.trim(),
+    doctor: document.getElementById("doctor").value.trim(),
+    date: document.getElementById("visitDate").value,
+    notes: document.getElementById("notes").value.trim(),
+    results
+  };
+
+  try {
+    visits.unshift(visit);
+    saveVisits(visits);
+
+    const saved = getVisits().some(v => v.id === visit.id);
+
+    if (!saved) {
+      throw new Error("لم يتم تأكيد حفظ الزيارة.");
+    }
+
+    currentVisit = visit;
+    const message = document.getElementById("saveMessage");
+    message.textContent = "تم حفظ الزيارة بنجاح. رقم الزيارة: " + visit.number;
+    message.style.display = "block";
+
+    renderHistory();
+
+  } catch (error) {
+    alert("تعذر حفظ الزيارة. تأكد من مساحة التخزين في المتصفح.");
+  }
+}
+
+function renderHistory() {
+  const container = document.getElementById("visitHistory");
+  const query = document.getElementById("search").value.trim().toLowerCase();
+  const visits = getVisits();
+
+  container.innerHTML = "";
+
+  const filtered = visits.filter(v =>
+    String(v.patient || "").toLowerCase().includes(query) ||
+    String(v.number || "").includes(query) ||
+    String(v.phone || "").includes(query)
+  );
+
+  if (!filtered.length) {
+    container.innerHTML = '<p class="muted">لا توجد زيارات مطابقة.</p>';
+    return;
+  }
+
+  filtered.forEach(visit => {
+    const box = document.createElement("div");
+    box.className = "visit";
+
+    const heading = document.createElement("h3");
+    heading.textContent = visit.patient;
+
+    const info = document.createElement("p");
+    info.className = "muted";
+    info.textContent =
+      "رقم الزيارة: " + visit.number +
+      " | التاريخ: " + (visit.date || "") +
+      " | الهاتف: " + (visit.phone || "");
+
+    const tests = document.createElement("p");
+    tests.textContent = "الفحوصات: " +
+      (visit.results || []).map(r => r.name).join("، ");
+
+    const printButton = document.createElement("button");
+    printButton.textContent = "طباعة التقرير";
+    printButton.addEventListener("click", () => printVisit(visit));
+
+    const deleteButton = document.createElement("button");
+    deleteButton.textContent = "حذف الزيارة";
+    deleteButton.className = "danger";
+    deleteButton.style.marginRight = "8px";
+    deleteButton.addEventListener("click", () => {
+      if (!confirm("هل تريد حذف هذه الزيارة؟")) return;
+      saveVisits(getVisits().filter(v => v.id !== visit.id));
+      renderHistory();
+    });
+
+    box.append(heading, info, tests, printButton, deleteButton);
+    container.appendChild(box);
+  });
+}
+
+function printVisit(visit) {
+  const area = document.getElementById("printArea");
+
+  const rows = (visit.results || []).map(result => {
+    const section = getTestSection(result.name);
+    const color = section ? section.color : "#2563a6";
+
+    return `
+      <tr>
+        <td style="color:${color};font-weight:bold">${result.name}</td>
+        <td>${result.result || ""}</td>
+        <td>${result.unit || ""}</td>
+        <td>${result.reference || ""}</td>
+      </tr>`;
+  }).join("");
+
+  area.innerHTML = `
+    <div style="font-family:Arial,Tahoma,sans-serif;direction:rtl;color:#222">
+      <div style="text-align:center;border-bottom:3px solid #087b91;padding-bottom:12px">
+        <h1 style="color:#075477">مختبر التميز الطبي التخصصي</h1>
+        <h3>Laboratory Test Report</h3>
+      </div>
+      <h3>بيانات المريض</h3>
+      <p>اسم المريض: ${escapeHTML(visit.patient)}</p>
+      <p>رقم الزيارة: ${visit.number} | التاريخ: ${escapeHTML(visit.date || "")}</p>
+      <p>العمر: ${escapeHTML(visit.age || "")} | النوع: ${escapeHTML(visit.gender || "")}</p>
+      <p>الهاتف: ${escapeHTML(visit.phone || "")} | الطبيب المحول: ${escapeHTML(visit.doctor || "")}</p>
+      <table>
+        <thead>
+          <tr><th>Test</th><th>Result</th><th>Unit</th><th>Reference Range</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="margin-top:20px">ملاحظات: ${escapeHTML(visit.notes || "")}</p>
+      <div style="margin-top:65px;display:flex;justify-content:space-between">
+        <span>توقيع المختص: ______________</span>
+        <span>الختم: ______________</span>
+      </div>
+    </div>`;
+
+  window.print();
+}
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
+}
+
+document.querySelectorAll(".tab").forEach(button => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll("main section").forEach(s => s.classList.remove("active"));
+
+    button.classList.add("active");
+    document.getElementById(button.dataset.tab).classList.add("active");
+
+    if (button.dataset.tab === "history") renderHistory();
+  });
 });
-}
 
-function clearForm(){
-["patient","age","gender","phone","doctor","notes"].forEach(id=>$(id).value="");
-document.querySelectorAll(".testcheck").forEach(c=>c.checked=false);
-$("resultFields").innerHTML="";
-$("visitDate").value=new Date().toISOString().slice(0,10);
-}
+document.getElementById("saveVisit").addEventListener("click", saveVisit);
+document.getElementById("search").addEventListener("input", renderHistory);
 
-function saveVisit(){
-const patient=$("patient").value.trim();
-if(!patient){alert("يرجى كتابة اسم المريض");return;}
-const tests=selectedResults();
-if(!tests.length){alert("يرجى اختيار فحص واحد على الأقل");return;}
-
-const visit={
-id:Date.now(),
-number:visits.length?Math.max(...visits.map(v=>Number(v.number)||0))+1:1,
-patient,
-age:$("age").value.trim(),
-gender:$("gender").value,
-phone:$("phone").value.trim(),
-doctor:$("doctor").value.trim(),
-date:$("visitDate").value,
-notes:$("notes").value.trim(),
-tests
-};
-
-visits.unshift(visit);
-try{
-persist();
-}catch(e){
-visits.shift();
-alert("تعذر الحفظ. قد تكون مساحة التخزين ممتلئة.");
-return;
-}
-alert("تم حفظ الزيارة بنجاح. رقم الزيارة: "+visit.number);
-clearForm();
-renderHistory();
-}
-
-function renderHistory(){
-const q=$("search").value.trim().toLowerCase();
-const filtered=visits.filter(v=>
-[v.patient,v.phone,v.number,v.date].join(" ").toLowerCase().includes(q)
-);
-$("visitHistory").innerHTML=filtered.map(v=>`
-<div class="visit">
-<h3>${esc(v.patient)}</h3>
-<p>رقم الزيارة: ${esc(v.number)} | التاريخ: ${esc(v.date)}</p>
-<p>الهاتف: ${esc(v.phone||"—")} | العمر: ${esc(v.age||"—")}</p>
-<p class="muted">عدد الفحوصات: ${(v.tests||[]).length}</p>
-<div class="actions">
-<button onclick="printVisit(${v.id})">طباعة التقرير</button>
-<button class="danger" onclick="deleteVisit(${v.id})">حذف الزيارة</button>
-</div>
-</div>
-`).join("")||"<p>لا توجد زيارات مطابقة.</p>";
-}
-
-function deleteVisit(id){
-if(!confirm("هل أنت متأكد من حذف هذه الزيارة؟"))return;
-visits=visits.filter(v=>v.id!==id);
-persist();
-renderHistory();
-}
-
-function printVisit(id){
-const v=visits.find(x=>x.id===id);
-if(!v)return;
-buildReport(v);
-window.print();
-}
-
-function buildReport(v){
-const rows=(v.tests||[]).map(t=>`
-<tr>
-<td style="border-right:5px solid ${colors[t.section]||"#777"}">${esc(t.test)}<br><small>${esc(t.section)}</small></td>
-<td>${esc(t.result)}</td>
-<td>${esc(t.unit)}</td>
-<td>${esc(t.range)}</td>
-</tr>
-`).join("");
-
-$("printArea").innerHTML=`
-<div style="font-family:Tahoma,Arial,sans-serif;color:#222">
-<div style="text-align:center;border-bottom:3px solid #087b91;padding-bottom:12px">
-<h2 style="color:#075477;font-size:23px;margin:5px">مختبر التميز الطبي التخصصي</h2>
-<p>تقرير نتائج الفحوصات المخبرية</p>
-</div>
-<div style="display:flex;justify-content:space-between;margin:18px 0">
-<strong>رقم الزيارة: ${esc(v.number)}</strong>
-<strong>التاريخ: ${esc(v.date)}</strong>
-</div>
-<table style="width:100%;border-collapse:collapse">
-<tr><th>اسم المريض</th><td>${esc(v.patient)}</td><th>العمر</th><td>${esc(v.age)}</td></tr>
-<tr><th>النوع</th><td>${esc(v.gender)}</td><th>الهاتف</th><td>${esc(v.phone)}</td></tr>
-<tr><th>الطبيب المحوِّل</th><td colspan="3">${esc(v.doctor)}</td></tr>
-</table>
-<h3 style="color:#075477;margin-top:22px">نتائج الفحوصات</h3>
-<table style="width:100%;border-collapse:collapse">
-<thead><tr><th>الفحص والقسم</th><th>النتيجة</th><th>الوحدة</th><th>المعدل المرجعي</th></tr></thead>
-<tbody>${rows}</tbody>
-</table>
-<p style="margin-top:20px"><strong>ملاحظات:</strong> ${esc(v.notes||"—")}</p>
-<div style="display:flex;justify-content:space-between;margin-top:65px">
-<span>توقيع مسؤول المختبر: ....................</span>
-<span>الختم: ....................</span>
-</div>
-</div>`;
-}
-
-$("saveVisit").addEventListener("click",saveVisit);
-$("printCurrent").addEventListener("click",()=>{
-const patient=$("patient").value.trim();
-if(!patient){alert("يرجى كتابة اسم المريض أولاً");return;}
-const tests=selectedResults();
-if(!tests.length){alert("يرجى اختيار فحص واحد على الأقل");return;}
-buildReport({
-number:"مسودة",
-patient,
-age:$("age").value,
-gender:$("gender").value,
-phone:$("phone").value,
-doctor:$("doctor").value,
-date:$("visitDate").value,
-notes:$("notes").value,
-tests
-});
-window.print();
+document.getElementById("printCurrent").addEventListener("click", () => {
+  if (currentVisit) {
+    printVisit(currentVisit);
+  } else {
+    alert("احفظ الزيارة أولاً حتى تتمكن من طباعة التقرير.");
+  }
 });
 
-$("testSearch").addEventListener("input",()=>{
-const selected=[...document.querySelectorAll(".testcheck:checked")].map(c=>c.value);
+document.getElementById("exportBtn").addEventListener("click", () => {
+  const data = JSON.stringify(getVisits(), null, 2);
+  const blob = new Blob([data], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "lab-visits-backup.json";
+  link.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("importFile").addEventListener("change", event => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    try {
+      const imported = JSON.parse(reader.result);
+      if (!Array.isArray(imported)) throw new Error("Invalid backup");
+
+      if (!confirm("سيتم استبدال سجل الزيارات الحالي بالنسخة المستعادة. هل توافق؟")) return;
+
+      saveVisits(imported);
+      renderHistory();
+      alert("تمت استعادة النسخة الاحتياطية بنجاح.");
+    } catch (error) {
+      alert("ملف النسخة الاحتياطية غير صالح.");
+    }
+  };
+
+  reader.readAsText(file);
+});
+
+document.getElementById("visitDate").value = new Date().toISOString().slice(0, 10);
+
 renderTests();
-selected.forEach(i=>{
-const box=document.querySelector(`.testcheck[value="${i}"]`);
-if(box)box.checked=true;
-});
 renderFields();
-});
-
-$("search").addEventListener("input",renderHistory);
-
-document.querySelectorAll(".tab").forEach(btn=>{
-btn.addEventListener("click",()=>{
-document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
-document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));
-btn.classList.add("active");
-$(btn.dataset.tab).classList.add("active");
-if(btn.dataset.tab==="history")renderHistory();
-});
-});
-
-$("exportBtn").addEventListener("click",()=>{
-const blob=new Blob([JSON.stringify(visits,null,2)],{type:"application/json"});
-const url=URL.createObjectURL(blob);
-const a=document.createElement("a");
-a.href=url;
-a.download="lab-backup-"+new Date().toISOString().slice(0,10)+".json";
-a.click();
-URL.revokeObjectURL(url);
-});
-
-$("importFile").addEventListener("change",async e=>{
-const file=e.target.files[0];
-if(!file)return;
-try{
-const data=JSON.parse(await file.text());
-if(!Array.isArray(data))throw new Error("invalid");
-if(!confirm("سيتم استبدال سجل الزيارات الحالي بالنسخة المختارة. هل تريد المتابعة؟"))return;
-visits=data;
-persist();
-renderHistory();
-alert("تمت استعادة النسخة الاحتياطية بنجاح.");
-}catch(err){
-alert("الملف غير صالح أو تعذرت قراءته.");
-}
-e.target.value="";
-});
-
-renderTests();
 renderHistory();
 </script>
 </body>
