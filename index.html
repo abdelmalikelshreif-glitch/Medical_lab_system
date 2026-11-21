@@ -1162,4 +1162,332 @@ renderHistory();
 })();
 </script>
 
+
+<script>
+/* LABNOVA - Final Design Foundation */
+(function () {
+  "use strict";
+
+  /* 1. منع تكرار الفحوصات بين الأقسام */
+  if (typeof sections !== "undefined") {
+    const seen = new Set();
+
+    sections.forEach(section => {
+      section.tests = section.tests.filter(test => {
+        if (seen.has(test)) return false;
+        seen.add(test);
+        return true;
+      });
+    });
+
+    if (typeof selectedTests !== "undefined") {
+      selectedTests = [...new Set(selectedTests)];
+    }
+
+    if (typeof renderTests === "function") renderTests();
+    if (typeof renderFields === "function") renderFields();
+  }
+
+  /* 2. تحسين التصميم العام */
+  const style = document.createElement("style");
+  style.textContent = `
+    :root {
+      --ln-primary:#075477;
+      --ln-teal:#0b9292;
+      --ln-ink:#173448;
+      --ln-muted:#647989;
+      --ln-border:#e0eaf0;
+      --ln-shadow:0 10px 28px rgba(20,55,75,.08);
+    }
+
+    body {
+      background:linear-gradient(180deg,#eaf3f7 0,#f5f8fa 280px);
+      color:var(--ln-ink);
+      font-family:Tahoma,Arial,sans-serif;
+    }
+
+    header {
+      position:relative;
+      overflow:hidden;
+      text-align:right;
+      padding:28px clamp(16px,4vw,48px);
+      background:linear-gradient(115deg,#073c59,#075f7c 58%,#0b9292);
+      box-shadow:0 8px 24px rgba(7,61,89,.18);
+    }
+
+    header:after {
+      content:"";
+      position:absolute;
+      width:230px;
+      height:230px;
+      left:-75px;
+      top:-125px;
+      border:1px solid rgba(255,255,255,.2);
+      border-radius:50%;
+      box-shadow:0 0 0 25px rgba(255,255,255,.04),
+                 0 0 0 55px rgba(255,255,255,.025);
+      pointer-events:none;
+    }
+
+    header h1 {
+      font-size:clamp(21px,3vw,30px);
+      font-weight:800;
+    }
+
+    header p {
+      color:#d8eff2;
+      font-size:13px;
+    }
+
+    main {
+      max-width:1240px;
+      margin:24px auto;
+      padding:0 14px;
+    }
+
+    nav {
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      padding:9px;
+      background:#fff;
+      border:1px solid var(--ln-border);
+      border-radius:15px;
+      box-shadow:var(--ln-shadow);
+      margin-bottom:16px;
+    }
+
+    nav button {
+      border-radius:10px;
+      padding:12px 17px;
+      font-weight:700;
+    }
+
+    nav button.active {
+      background:linear-gradient(120deg,#075477,#0b9292);
+      color:#fff;
+    }
+
+    button {
+      border-radius:10px;
+      font-weight:700;
+      transition:transform .15s,box-shadow .15s;
+    }
+
+    button:hover {
+      transform:translateY(-1px);
+      box-shadow:0 5px 14px rgba(7,84,119,.16);
+    }
+
+    section {
+      border:1px solid var(--ln-border);
+      border-radius:16px;
+      padding:clamp(14px,2.4vw,25px);
+      box-shadow:var(--ln-shadow);
+      margin-bottom:18px;
+    }
+
+    h2 {
+      color:var(--ln-primary);
+      font-weight:800;
+      padding-bottom:10px;
+      border-bottom:1px solid #e8eff3;
+    }
+
+    input,select,textarea {
+      border:1px solid #d3e0e7;
+      border-radius:10px;
+      background:#fbfdfe;
+      transition:border-color .15s,box-shadow .15s;
+    }
+
+    input:focus,select:focus,textarea:focus {
+      outline:none;
+      border-color:#168b9a;
+      box-shadow:0 0 0 3px rgba(22,139,154,.12);
+      background:#fff;
+    }
+
+    .group-title {
+      font-weight:800;
+      box-shadow:0 4px 12px rgba(16,54,76,.08);
+    }
+
+    .test {
+      border:1px solid var(--ln-border);
+      border-radius:11px;
+      transition:.15s;
+    }
+
+    .test:hover {
+      border-color:#8ab9c7;
+      transform:translateY(-1px);
+    }
+
+    .test.selected {
+      background:#eaf7f8;
+      border-color:#168b9a;
+    }
+
+    .test-fields {
+      border-radius:12px;
+      box-shadow:0 4px 14px rgba(16,54,76,.045);
+    }
+
+    .visit {
+      border:1px solid var(--ln-border);
+      border-radius:13px;
+      background:#fff;
+      box-shadow:0 5px 16px rgba(16,54,76,.045);
+    }
+
+    #lnDashboard {
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:12px;
+      margin:0 0 17px;
+    }
+
+    .ln-stat {
+      background:linear-gradient(145deg,#fff,#f5fbfd);
+      border:1px solid var(--ln-border);
+      border-radius:14px;
+      padding:15px;
+      box-shadow:var(--ln-shadow);
+      min-width:0;
+    }
+
+    .ln-stat small {
+      display:block;
+      color:var(--ln-muted);
+      font-size:12px;
+      margin-bottom:8px;
+    }
+
+    .ln-stat strong {
+      display:block;
+      color:var(--ln-primary);
+      font-size:25px;
+      font-weight:800;
+    }
+
+    .ln-brand {
+      color:#c8eeee;
+      font-size:11px;
+      font-weight:800;
+      letter-spacing:1.5px;
+      margin-bottom:7px;
+    }
+
+    @media(max-width:760px) {
+      #lnDashboard {
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+      nav button {
+        flex:1 1 calc(50% - 8px);
+        padding:11px 8px;
+      }
+    }
+
+    @media(max-width:420px) {
+      .grid {grid-template-columns:1fr}
+      .tests {grid-template-columns:repeat(2,minmax(0,1fr))}
+      #lnDashboard {gap:8px}
+      .ln-stat {padding:12px}
+      .ln-stat strong {font-size:21px}
+    }
+
+    @media print {
+      header:after {display:none}
+    }
+  `;
+  document.head.appendChild(style);
+
+  /* 3. إضافة هوية LabNova */
+  const header = document.querySelector("header");
+
+  if (header && !header.querySelector(".ln-brand")) {
+    const brand = document.createElement("div");
+    brand.className = "ln-brand";
+    brand.textContent = "LABNOVA • LABORATORY MANAGEMENT SYSTEM";
+    header.insertBefore(brand, header.firstChild);
+  }
+
+  /* 4. لوحة الإحصائيات */
+  const main = document.querySelector("main");
+  const nav = main && main.querySelector("nav");
+
+  if (!main || !nav) return;
+
+  if (!document.getElementById("lnDashboard")) {
+    const dashboard = document.createElement("div");
+    dashboard.id = "lnDashboard";
+
+    dashboard.innerHTML = `
+      <div class="ln-stat">
+        <small>إجمالي الزيارات المحفوظة</small>
+        <strong id="lnVisitCount">0</strong>
+      </div>
+      <div class="ln-stat">
+        <small>زيارات اليوم</small>
+        <strong id="lnTodayCount">0</strong>
+      </div>
+      <div class="ln-stat">
+        <small>الفحوصات المتاحة</small>
+        <strong id="lnTestCount">0</strong>
+      </div>
+      <div class="ln-stat">
+        <small>النظام</small>
+        <strong style="font-size:17px">LabNova</strong>
+      </div>
+    `;
+
+    nav.insertAdjacentElement("afterend", dashboard);
+  }
+
+  function refreshDashboard() {
+    try {
+      const visits = JSON.parse(
+        localStorage.getItem("labVisits") || "[]"
+      );
+
+      const today = new Date().toLocaleDateString("en-CA");
+
+      const todayCount = visits.filter(visit => {
+        const date = visit.visitDate || visit.date || "";
+        return String(date).slice(0,10) === today;
+      }).length;
+
+      const testCount = typeof sections !== "undefined"
+        ? new Set(sections.flatMap(section => section.tests)).size
+        : 0;
+
+      document.getElementById("lnVisitCount").textContent =
+        visits.length;
+
+      document.getElementById("lnTodayCount").textContent =
+        todayCount;
+
+      document.getElementById("lnTestCount").textContent =
+        testCount;
+    } catch (error) {
+      console.error("LabNova dashboard:", error);
+    }
+  }
+
+  refreshDashboard();
+
+  document.addEventListener("click", function(event) {
+    if (event.target && event.target.id === "saveVisit") {
+      setTimeout(refreshDashboard, 300);
+    }
+  });
+
+  document.addEventListener("visibilitychange", function() {
+    if (!document.hidden) refreshDashboard();
+  });
+
+})();
+</script>
+
 </html>
