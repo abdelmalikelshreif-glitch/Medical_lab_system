@@ -1931,4 +1931,146 @@ renderHistory();
 })();
 </script>
 
+<script>
+/* LabNova - Final English Reference Display Fix */
+(function () {
+  const KEY = "labReferenceRanges";
+
+  const defaults = {
+    "ESR": "Male: 0–15 | Female: 0–20",
+    "Glucose": "Fasting: 70–99 | Random: Interpret according to clinical context",
+    "RBS": "Random: Interpret according to clinical context; no single cutoff is used for diagnosis",
+    "Creatinine": "Male: 0.7–1.3 | Female: 0.6–1.1",
+    "ALT": "Male: Up to 40 | Female: Up to 31",
+    "AST": "Male: Up to 37 | Female: Up to 31",
+    "Uric Acid": "Male: 3.5–7.2 | Female: 2.6–6.0",
+    "Cholesterol": "Desirable: Less than 200",
+    "Triglycerides": "Fasting: Less than 150",
+    "CRP": "Less than 5 (method-dependent)",
+    "ASO": "Depends on age and reagent",
+    "RF": "Usually less than 14; reagent-dependent",
+    "PT": "Approximately 11–13.5; analyzer and reagent-dependent",
+    "APTT": "Approximately 25–35; analyzer and reagent-dependent",
+    "H. pylori Antibody": "According to the reagent manufacturer's instructions",
+    "Widal Test": "Depends on local baseline values and test method",
+    "HCG": "Non-pregnant: Depends on assay sensitivity",
+    "Blood Group": "Determined by testing",
+    "Rh Factor": "Determined by testing",
+    "Urine Analysis": "Refer to individual reference values for each urine parameter",
+    "Stool Analysis": "No pathogenic parasites or ova detected",
+    "Blood Film": "Interpret according to microscopic examination",
+    "Hb Electrophoresis": "Depends on age and method",
+    "CBC": "CBC parameters are reported individually according to the analyzer",
+    "UG": "Depends on test type and measurement method",
+    "Stool G": "No pathogenic parasites or ova detected",
+    "Dengue fever quantitative": "Depends on the reagent and analyte"
+  };
+
+  const words = [
+    [/صائم/g, "Fasting"],
+    [/عشوائي/g, "Random"],
+    [/ذكر/g, "Male"],
+    [/أنثى/g, "Female"],
+    [/مرغوب/g, "Desirable"],
+    [/أقل من|اقل من/g, "Less than"],
+    [/أكثر من|اكثر من/g, "Greater than"],
+    [/حتى/g, "Up to"],
+    [/تقريباً|تقريبا/g, "Approximately"],
+    [/غالباً|غالبا/g, "Usually"],
+    [/حسب طريقة القياس/g, "Method-dependent"],
+    [/حسب طريقة الفحص/g, "According to the test method"],
+    [/حسب الشركة المصنعة للكاشف/g, "According to the reagent manufacturer's instructions"],
+    [/حسب الكاشف/g, "Reagent-dependent"],
+    [/حسب الجهاز والكاشف/g, "Analyzer and reagent-dependent"],
+    [/يعتمد على خط الأساس المحلي وطريقة الفحص/g, "Depends on local baseline values and test method"],
+    [/يحدد حسب العمر والكاشف/g, "Depends on age and reagent"],
+    [/غير الحوامل/g, "Non-pregnant"],
+    [/لا توجد طفيليات أو بويضات مرضية/g, "No pathogenic parasites or ova detected"],
+    [/راجع القيم الطبيعية لكل عنصر في تحليل البول/g, "Refer to individual reference values for each urine parameter"],
+    [/وصف حسب الفحص المجهري/g, "Interpret according to microscopic examination"],
+    [/حسب العمر والطريقة/g, "Depends on age and method"],
+    [/حسب نوع الفحص وطريقة القياس/g, "Depends on test type and measurement method"],
+    [/يحدد بالفحص/g, "Determined by testing"],
+    [/يفسر حسب الحالة/g, "Interpret according to clinical context"],
+    [/لا يعتمد حد واحد للتشخيص/g, "No single cutoff is used for diagnosis"],
+    [/لغير مستخدمي مضادات التخثر/g, "for patients not receiving anticoagulants"]
+  ];
+
+  function english(value) {
+    if (typeof value !== "string") return value;
+    words.forEach(([pattern, replacement]) => {
+      value = value.replace(pattern, replacement);
+    });
+    return value;
+  }
+
+  function updateStorage() {
+    try {
+      const data = JSON.parse(localStorage.getItem(KEY) || "{}");
+
+      Object.keys(data).forEach(test => {
+        const item = data[test];
+        if (!item) return;
+
+        if (defaults[test] && (!item.reference || /[ء-ي]/.test(item.reference))) {
+          item.reference = defaults[test];
+        } else {
+          item.reference = english(item.reference);
+        }
+
+        if (item.profiles) {
+          Object.keys(item.profiles).forEach(profile => {
+            item.profiles[profile] = english(item.profiles[profile]);
+          });
+        }
+      });
+
+      Object.keys(defaults).forEach(test => {
+        if (!data[test]) data[test] = {reference: defaults[test]};
+      });
+
+      localStorage.setItem(KEY, JSON.stringify(data));
+      return data;
+    } catch (e) {
+      console.error("English reference update:", e);
+      return {};
+    }
+  }
+
+  function fixVisibleFields() {
+    const data = updateStorage();
+
+    document.querySelectorAll(
+      '#resultFields input[data-field="reference"]'
+    ).forEach(input => {
+      const test = input.dataset.test;
+      const item = data[test] || {};
+      const value = item.reference || defaults[test] || "";
+      if (value) input.value = english(value);
+    });
+  }
+
+  const oldRender = window.renderFields;
+
+  if (typeof oldRender === "function") {
+    window.renderFields = function () {
+      oldRender.apply(this, arguments);
+      fixVisibleFields();
+    };
+  }
+
+  updateStorage();
+
+  document.addEventListener("change", function (event) {
+    if (event.target && (event.target.id === "age" ||
+                         event.target.id === "gender")) {
+      setTimeout(fixVisibleFields, 0);
+    }
+  });
+
+  document.addEventListener("DOMContentLoaded", fixVisibleFields);
+  setTimeout(fixVisibleFields, 100);
+})();
+</script>
+
 </html>
