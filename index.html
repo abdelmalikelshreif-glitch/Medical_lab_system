@@ -1490,4 +1490,274 @@ renderHistory();
 })();
 </script>
 
+<script>
+/* LabNova - Reference Ranges Manager */
+(function () {
+  "use strict";
+
+  const KEY = "labReferenceRanges";
+
+  // قيم أولية عامة للبالغين؛ يجب اعتمادها محلياً قبل الاستخدام السريري.
+  const starter = {
+    "ESR": {unit:"mm/hr", reference:"ذكر: 0–15 | أنثى: 0–20"},
+    "Reticulocyte Count": {unit:"%", reference:"0.5–2.5"},
+    "Glucose": {unit:"mg/dL", reference:"صائم: 70–99 | عشوائي: يفسر حسب الحالة"},
+    "RBS": {unit:"mg/dL", reference:"عشوائي: يفسر حسب الحالة؛ لا يعتمد حد واحد للتشخيص"},
+    "Urea": {unit:"mg/dL", reference:"15–40"},
+    "Creatinine": {unit:"mg/dL", reference:"ذكر: 0.7–1.3 | أنثى: 0.6–1.1"},
+    "ALT": {unit:"U/L", reference:"ذكر: حتى 40 | أنثى: حتى 31"},
+    "AST": {unit:"U/L", reference:"ذكر: حتى 37 | أنثى: حتى 31"},
+    "Bilirubin Total": {unit:"mg/dL", reference:"0.1–1.2"},
+    "Bilirubin Direct": {unit:"mg/dL", reference:"0.0–0.3"},
+    "Albumin": {unit:"g/dL", reference:"3.5–5.0"},
+    "Total Protein": {unit:"g/dL", reference:"6.0–8.3"},
+    "Uric Acid": {unit:"mg/dL", reference:"ذكر: 3.5–7.2 | أنثى: 2.6–6.0"},
+    "Cholesterol": {unit:"mg/dL", reference:"مرغوب: أقل من 200"},
+    "Triglycerides": {unit:"mg/dL", reference:"صائم: أقل من 150"},
+    "Calcium": {unit:"mg/dL", reference:"8.5–10.5"},
+    "Sodium": {unit:"mmol/L", reference:"135–145"},
+    "Potassium": {unit:"mmol/L", reference:"3.5–5.1"},
+    "CRP": {unit:"mg/L", reference:"أقل من 5 (حسب طريقة القياس)"},
+    "ASO": {unit:"IU/mL", reference:"يحدد حسب العمر والكاشف"},
+    "RF": {unit:"IU/mL", reference:"غالباً أقل من 14؛ حسب الكاشف"},
+    "PT": {unit:"sec", reference:"تقريباً 11–13.5؛ حسب الجهاز والكاشف"},
+    "INR": {unit:"Ratio", reference:"0.8–1.2 لغير مستخدمي مضادات التخثر"},
+    "APTT": {unit:"sec", reference:"تقريباً 25–35؛ حسب الجهاز والكاشف"},
+    "H. pylori Antibody": {unit:"حسب طريقة الفحص", reference:"حسب الشركة المصنعة للكاشف"},
+    "HCV Antibody": {unit:"حسب طريقة الفحص", reference:"Non-reactive"},
+    "HBsAg": {unit:"حسب طريقة الفحص", reference:"Non-reactive"},
+    "HIV": {unit:"حسب طريقة الفحص", reference:"Non-reactive"},
+    "Widal Test": {unit:"Titre", reference:"يعتمد على خط الأساس المحلي وطريقة الفحص"},
+    "Pregnancy Test": {unit:"Qualitative", reference:"Negative"},
+    "HCG": {unit:"حسب طريقة الفحص", reference:"غير الحوامل: حسب حساسية الكاشف"},
+    "ICT for malaria": {unit:"Qualitative", reference:"Negative"},
+    "Malaria Parasite": {unit:"وصف مجهري", reference:"No malaria parasites seen"},
+    "Blood Group": {unit:"—", reference:"يحدد بالفحص"},
+    "Rh Factor": {unit:"—", reference:"يحدد بالفحص"},
+    "Urine Analysis": {unit:"وصف الفحص", reference:"راجع القيم الطبيعية لكل عنصر في تحليل البول"},
+    "Stool Analysis": {unit:"وصف الفحص", reference:"لا توجد طفيليات أو بويضات مرضية"},
+    "Urine Culture": {unit:"وصف الزراعة", reference:"No significant growth"},
+    "Stool Culture": {unit:"وصف الزراعة", reference:"No pathogenic growth"},
+    "Sputum Culture": {unit:"وصف الزراعة", reference:"No significant pathogenic growth"},
+    "Blood Film": {unit:"وصف مجهري", reference:"وصف حسب الفحص المجهري"},
+    "Hb Electrophoresis": {unit:"%", reference:"حسب العمر والطريقة"},
+    "CBC": {unit:"متعدد الوحدات", reference:"تُعرض مؤشرات CBC منفصلة حسب الجهاز؛ لا يوجد مدى واحد للـ CBC"},
+    "BFFM": {unit:"وصف مجهري", reference:"No malaria parasites seen"},
+    "UG": {unit:"mg/dL", reference:"حسب نوع الفحص وطريقة القياس"},
+    "Stool G": {unit:"وصف الفحص", reference:"لا توجد طفيليات أو بويضات مرضية"},
+    "Dengue fever quantitative": {unit:"حسب طريقة الفحص", reference:"حسب الكاشف ونوع المؤشر"}
+  };
+
+  function readRanges() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
+      return Object.assign({}, starter, saved);
+    } catch (e) {
+      return Object.assign({}, starter);
+    }
+  }
+
+  let ranges = readRanges();
+
+  function getAgeYears() {
+    const raw = (document.getElementById("age")?.value || "").trim();
+    const n = parseFloat(raw.replace(",", "."));
+    if (!Number.isFinite(n)) return null;
+    if (/شهر|month/i.test(raw)) return n / 12;
+    if (/يوم|day/i.test(raw)) return n / 365;
+    return n;
+  }
+
+  function selectedProfile() {
+    const gender = document.getElementById("gender")?.value || "";
+    const age = getAgeYears();
+    if (age !== null && age < 15) return "child";
+    if (gender === "ذكر") return "male";
+    if (gender === "أنثى") return "female";
+    return "general";
+  }
+
+  function rangeFor(test) {
+    const item = ranges[test] || {};
+    const profile = selectedProfile();
+    return {
+      unit: item.unit || (window.testCatalog?.[test]?.unit || ""),
+      reference: (item.profiles && item.profiles[profile]) ||
+                 item.reference || ""
+    };
+  }
+
+  // ملء المعدل تلقائياً عند اختيار الفحص، مع بقاء الحقول قابلة للتعديل.
+  const oldRenderFields = window.renderFields;
+  if (typeof oldRenderFields === "function") {
+    window.renderFields = function () {
+      oldRenderFields();
+      document.querySelectorAll('#resultFields input[data-field="reference"]').forEach(input => {
+        const test = input.dataset.test;
+        const value = rangeFor(test);
+        if (!input.value || input.value === "أدخل المعدل المرجعي المعتمد") {
+          input.value = value.reference;
+        }
+      });
+      document.querySelectorAll('#resultFields input[data-field="unit"]').forEach(input => {
+        const test = input.dataset.test;
+        const value = rangeFor(test);
+        if (value.unit) input.value = value.unit;
+      });
+    };
+  }
+
+  // تحديث المعدلات تلقائياً عند تغيير عمر أو نوع المريض.
+  ["age", "gender"].forEach(id => {
+    document.getElementById(id)?.addEventListener("change", () => {
+      document.querySelectorAll('#resultFields input[data-field="reference"]').forEach(input => {
+        const test = input.dataset.test;
+        input.value = rangeFor(test).reference;
+      });
+    });
+  });
+
+  const main = document.querySelector("main");
+  const nav = main?.querySelector("nav");
+  if (!main || !nav) return;
+
+  // إنشاء تبويب الإدارة.
+  if (!document.querySelector('[data-tab="ranges"]')) {
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = "tab";
+    tab.dataset.tab = "ranges";
+    tab.textContent = "إدارة المعدلات المرجعية";
+    nav.appendChild(tab);
+
+    const section = document.createElement("section");
+    section.id = "ranges";
+    section.innerHTML = `
+      <h2>إدارة المعدلات المرجعية للفحوصات</h2>
+      <p class="muted">اختر الفحص، ثم راجع الوحدة والمعدل المرجعي وعدّلهما. التعديلات تحفظ على هذا الجهاز.</p>
+      <div class="grid">
+        <label>الفحص
+          <select id="lnRangeTest"></select>
+        </label>
+        <label>الفئة المرجعية
+          <select id="lnRangeProfile">
+            <option value="general">عام</option>
+            <option value="male">ذكر بالغ</option>
+            <option value="female">أنثى بالغة</option>
+            <option value="child">أطفال</option>
+          </select>
+        </label>
+        <label>وحدة القياس
+          <input id="lnRangeUnit" placeholder="مثال: mg/dL">
+        </label>
+        <label>المعدل المرجعي
+          <textarea id="lnRangeValue" rows="3" placeholder="اكتب المعدل أو الوصف المرجعي"></textarea>
+        </label>
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button type="button" id="lnSaveRange">حفظ المعدل</button>
+        <button type="button" id="lnResetRange">استعادة القيمة الأولية</button>
+      </div>
+      <p id="lnRangeMessage" class="success"></p>
+      <p class="muted">تنبيه: القيم الأولية إرشادية عامة وليست بديلاً عن المجال المرجعي المعتمد من الشركة المصنعة للكاشف أو المختبر. الفئات العمرية الخاصة وحديثو الولادة والحمل تحتاج مجالات مخصصة.</p>
+    `;
+    main.appendChild(section);
+
+    // ربط التبويب الجديد بنظام التنقل الموجود.
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll("main section").forEach(s => s.classList.remove("active"));
+      tab.classList.add("active");
+      section.classList.add("active");
+      fillTestList();
+      loadEditor();
+    });
+  }
+
+  const testSelect = document.getElementById("lnRangeTest");
+  const profileSelect = document.getElementById("lnRangeProfile");
+  const unitInput = document.getElementById("lnRangeUnit");
+  const valueInput = document.getElementById("lnRangeValue");
+  const message = document.getElementById("lnRangeMessage");
+
+  function allTests() {
+    if (typeof sections === "undefined") return Object.keys(ranges);
+    return [...new Set(sections.flatMap(s => s.tests))].sort();
+  }
+
+  function fillTestList() {
+    if (!testSelect) return;
+    const current = testSelect.value;
+    testSelect.innerHTML = "";
+    allTests().forEach(name => {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      testSelect.appendChild(option);
+    });
+    if (current && [...testSelect.options].some(o => o.value === current)) {
+      testSelect.value = current;
+    }
+  }
+
+  function loadEditor() {
+    const test = testSelect.value;
+    const item = ranges[test] || {};
+    const profile = profileSelect.value;
+    unitInput.value = item.unit || "";
+    valueInput.value = (item.profiles && item.profiles[profile]) ||
+      (profile === "general" ? (item.reference || "") : "");
+    message.textContent = "";
+  }
+
+  testSelect.addEventListener("change", loadEditor);
+  profileSelect.addEventListener("change", loadEditor);
+
+  document.getElementById("lnSaveRange").addEventListener("click", () => {
+    const test = testSelect.value;
+    if (!test) return;
+    const profile = profileSelect.value;
+    const item = ranges[test] || {};
+    item.unit = unitInput.value.trim();
+    if (profile === "general") {
+      item.reference = valueInput.value.trim();
+    } else {
+      item.profiles = item.profiles || {};
+      item.profiles[profile] = valueInput.value.trim();
+    }
+    ranges[test] = item;
+    try {
+      localStorage.setItem(KEY, JSON.stringify(ranges));
+      message.textContent = "تم حفظ المعدل المرجعي بنجاح.";
+      message.style.display = "block";
+      if (typeof renderFields === "function") renderFields();
+    } catch (e) {
+      alert("تعذر حفظ المعدلات. تحقق من مساحة التخزين.");
+    }
+  });
+
+  document.getElementById("lnResetRange").addEventListener("click", () => {
+    const test = testSelect.value;
+    if (!test) return;
+    const profile = profileSelect.value;
+    const base = starter[test] || {};
+    const item = ranges[test] || {};
+    if (profile === "general") {
+      item.reference = base.reference || "";
+      item.unit = base.unit || "";
+    } else if (item.profiles) {
+      delete item.profiles[profile];
+    }
+    ranges[test] = item;
+    localStorage.setItem(KEY, JSON.stringify(ranges));
+    loadEditor();
+    if (typeof renderFields === "function") renderFields();
+    message.textContent = "تمت استعادة القيمة الأولية.";
+    message.style.display = "block";
+  });
+
+  fillTestList();
+})();
+</script>
+
 </html>
