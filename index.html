@@ -920,4 +920,246 @@ renderHistory();
 </script>
 
 </body>
+<script>
+/* LabNova Update: Edit Visits + Full Backup */
+(function () {
+  let editingVisitId = null;
+
+  const $ = id => document.getElementById(id);
+
+  // زر بدء زيارة جديدة وإلغاء التعديل
+  const saveButton = $("saveVisit");
+  const newButton = document.createElement("button");
+  newButton.type = "button";
+  newButton.textContent = "زيارة جديدة / إلغاء التعديل";
+  newButton.style.background = "#526575";
+  saveButton.parentNode.insertBefore(newButton, saveButton);
+
+  const editNotice = document.createElement("div");
+  editNotice.className = "success";
+  editNotice.style.display = "none";
+  editNotice.style.background = "#fff4d6";
+  editNotice.style.color = "#805600";
+  editNotice.textContent = "أنت الآن تعدّل زيارة محفوظة.";
+  $("entry").insertBefore(editNotice, $("entry").children[1]);
+
+  function resetEditing() {
+    editingVisitId = null;
+    $("patient").value = "";
+    $("age").value = "";
+    $("gender").value = "";
+    $("phone").value = "";
+    $("doctor").value = "";
+    $("notes").value = "";
+    $("visitDate").value = new Date().toISOString().slice(0, 10);
+    selectedTests = [];
+    currentVisit = null;
+    editNotice.style.display = "none";
+    saveButton.textContent = "حفظ الزيارة";
+    $("saveMessage").style.display = "none";
+    renderTests();
+    renderFields();
+  }
+
+  newButton.addEventListener("click", resetEditing);
+
+  function loadVisitForEdit(visit) {
+    editingVisitId = visit.id;
+    $("patient").value = visit.patient || "";
+    $("age").value = visit.age || "";
+    $("gender").value = visit.gender || "";
+    $("phone").value = visit.phone || "";
+    $("doctor").value = visit.doctor || "";
+    $("notes").value = visit.notes || "";
+    $("visitDate").value = visit.date || "";
+
+    selectedTests = (visit.results || []).map(r => r.name);
+    renderTests();
+    renderFields();
+
+    (visit.results || []).forEach(result => {
+      ["result", "unit", "reference"].forEach(field => {
+        const input = [...document.querySelectorAll("#resultFields input")]
+          .find(el => el.dataset.test === result.name &&
+                      el.dataset.field === field);
+        if (input && result[field] !== undefined) {
+          input.value = result[field];
+        }
+      });
+    });
+
+    editNotice.style.display = "block";
+    saveButton.textContent = "حفظ التعديلات";
+    $("saveMessage").style.display = "none";
+
+    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll("main section").forEach(s => s.classList.remove("active"));
+    document.querySelector('[data-tab="entry"]').classList.add("active");
+    $("entry").classList.add("active");
+
+    currentVisit = visit;
+    window.scrollTo(0, 0);
+  }
+
+  // إضافة زر تعديل لكل زيارة في السجل
+  const oldRenderHistory = renderHistory;
+  renderHistory = function () {
+    oldRenderHistory();
+    document.querySelectorAll("#visitHistory .visit").forEach(card => {
+      if (card.querySelector(".edit-visit-button")) return;
+
+      const heading = card.querySelector("h3");
+      if (!heading) return;
+
+      const patientName = heading.textContent;
+      const visit = getVisits().find(v => v.patient === patientName &&
+        card.textContent.includes("رقم الزيارة: " + v.number));
+
+      if (!visit) return;
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "edit-visit-button";
+      button.textContent = "تعديل الزيارة";
+      button.style.background = "#8056a8";
+      button.style.marginRight = "8px";
+      button.addEventListener("click", () => loadVisitForEdit(visit));
+      card.appendChild(button);
+    });
+  };
+
+  // حفظ الزيارة أو تحديثها مع الاحتفاظ برقمها
+  document.addEventListener("click", function (event) {
+    if (event.target !== saveButton) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    const patient = $("patient").value.trim();
+    if (!patient) return alert("يرجى كتابة اسم المريض أولاً.");
+    if (!selectedTests.length) return alert("اختر فحصاً واحداً على الأقل.");
+
+    const visits = getVisits();
+    const results = collectResults();
+    let visit;
+
+    if (editingVisitId !== null) {
+      const index = visits.findIndex(v => String(v.id) === String(editingVisitId));
+      if (index < 0) return alert("لم نعثر على الزيارة الأصلية.");
+
+      visit = {
+        ...visits[index],
+        patient,
+        age: $("age").value.trim(),
+        gender: $("gender").value,
+        phone: $("phone").value.trim(),
+        doctor: $("doctor").value.trim(),
+        date: $("visitDate").value,
+        notes: $("notes").value.trim(),
+        results
+      };
+      visits[index] = visit;
+    } else {
+      visit = {
+        id: Date.now(),
+        number: visits.length
+          ? Math.max(...visits.map(v => Number(v.number) || 0)) + 1
+          : 1,
+        patient,
+        age: $("age").value.trim(),
+        gender: $("gender").value,
+        phone: $("phone").value.trim(),
+        doctor: $("doctor").value.trim(),
+        date: $("visitDate").value,
+        notes: $("notes").value.trim(),
+        results
+      };
+      visits.unshift(visit);
+    }
+
+    try {
+      saveVisits(visits);
+      currentVisit = visit;
+      editingVisitId = null;
+      editNotice.style.display = "none";
+      saveButton.textContent = "حفظ الزيارة";
+      $("saveMessage").textContent =
+        "تم حفظ الزيارة بنجاح. رقم الزيارة: " + visit.number;
+      $("saveMessage").style.display = "block";
+      renderHistory();
+    } catch (error) {
+      alert("تعذر الحفظ. تأكد من مساحة التخزين.");
+    }
+  }, true);
+
+  // نسخة احتياطية تشمل الزيارات والفواتير
+  document.addEventListener("click", function (event) {
+    if (event.target.id !== "exportBtn") return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    const data = {
+      app: "LabNova",
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      visits: getVisits(),
+      invoices: JSON.parse(localStorage.getItem("labInvoices") || "[]")
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json"
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "LabNova-full-backup.json";
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, true);
+
+  // استعادة النسخ الجديدة والقديمة
+  document.addEventListener("change", function (event) {
+    if (event.target.id !== "importFile") return;
+
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function () {
+      try {
+        const data = JSON.parse(reader.result);
+        const isOldBackup = Array.isArray(data);
+        const visits = isOldBackup ? data : data.visits;
+        const invoices = isOldBackup ? null : data.invoices;
+
+        if (!Array.isArray(visits)) {
+          throw new Error("Invalid backup");
+        }
+
+        if (!confirm("سيتم استبدال الزيارات الحالية" +
+          (Array.isArray(invoices) ? " والفواتير" : "") +
+          " بالنسخة الاحتياطية. هل توافق؟")) return;
+
+        saveVisits(visits);
+
+        if (Array.isArray(invoices)) {
+          localStorage.setItem("labInvoices", JSON.stringify(invoices));
+        }
+
+        renderHistory();
+        alert("تمت استعادة النسخة الاحتياطية بنجاح.");
+      } catch (error) {
+        alert("ملف النسخة الاحتياطية غير صالح.");
+      } finally {
+        event.target.value = "";
+      }
+    };
+    reader.readAsText(file);
+  }, true);
+
+  renderHistory();
+})();
+</script>
+
 </html>
