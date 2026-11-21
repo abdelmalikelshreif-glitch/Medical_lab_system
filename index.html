@@ -213,18 +213,71 @@ function renderTests() {
     container.appendChild(testsBox);
   });
 }
+
+const testCatalog = {
+  "CBC": { unit: "متعدد الوحدات" },
+  "ESR": { unit: "mm/hr" },
+  "Blood Film": { unit: "وصف مجهري" },
+  "Reticulocyte Count": { unit: "%" },
+  "Hb Electrophoresis": { unit: "%" },
+  "Glucose": { unit: "mg/dL" },
+  "RBS": { unit: "mg/dL" },
+  "UG": { unit: "mg/dL" },
+  "Urea": { unit: "mg/dL" },
+  "Creatinine": { unit: "mg/dL" },
+  "ALT": { unit: "U/L" },
+  "AST": { unit: "U/L" },
+  "Bilirubin Total": { unit: "mg/dL" },
+  "Bilirubin Direct": { unit: "mg/dL" },
+  "Albumin": { unit: "g/dL" },
+  "Total Protein": { unit: "g/dL" },
+  "Uric Acid": { unit: "mg/dL" },
+  "Cholesterol": { unit: "mg/dL" },
+  "Triglycerides": { unit: "mg/dL" },
+  "Calcium": { unit: "mg/dL" },
+  "Sodium": { unit: "mmol/L" },
+  "Potassium": { unit: "mmol/L" },
+  "CRP": { unit: "mg/L" },
+  "ASO": { unit: "IU/mL" },
+  "RF": { unit: "IU/mL" },
+  "Widal Test": { unit: "Titre" },
+  "PT": { unit: "sec" },
+  "INR": { unit: "Ratio" },
+  "APTT": { unit: "sec" },
+  "Blood Group": { unit: "—" },
+  "Rh Factor": { unit: "—" },
+  "H. pylori Antibody": { unit: "حسب طريقة الفحص" },
+  "HCV Antibody": { unit: "حسب طريقة الفحص" },
+  "HBsAg": { unit: "حسب طريقة الفحص" },
+  "HIV": { unit: "حسب طريقة الفحص" },
+  "Urine Culture": { unit: "وصف ونتيجة الزراعة" },
+  "Stool Culture": { unit: "وصف ونتيجة الزراعة" },
+  "Sputum Culture": { unit: "وصف ونتيجة الزراعة" },
+  "Urine Analysis": { unit: "وصف الفحص" },
+  "Stool Analysis": { unit: "وصف الفحص" },
+  "Malaria Parasite": { unit: "وصف مجهري" },
+  "ICT for malaria": { unit: "Qualitative" },
+  "Pregnancy Test": { unit: "Qualitative" },
+  "HCG": { unit: "حسب طريقة الفحص" },
+  "BFFM": { unit: "وصف مجهري" },
+  "Stool G": { unit: "وصف الفحص" },
+  "Dengue fever quantitative": { unit: "حسب طريقة الفحص" }
+};
+
 function renderFields() {
   const container = document.getElementById("resultFields");
   container.innerHTML = "";
 
   if (selectedTests.length === 0) {
-    container.innerHTML = '<p class="muted">اختر الفحوصات أولاً لتظهر خانات النتائج هنا.</p>';
+    container.innerHTML =
+      '<p class="muted">اختر الفحوصات أولاً لتظهر خانات النتائج هنا.</p>';
     return;
   }
 
   selectedTests.forEach(test => {
     const section = getTestSection(test);
     const color = section ? section.color : "#2563a6";
+    const defaults = testCatalog[test] || {};
 
     const box = document.createElement("div");
     box.className = "test-fields";
@@ -239,10 +292,10 @@ function renderFields() {
     fields.className = "fields-grid";
 
     [
-      ["Result", "result"],
-      ["Unit", "unit"],
-      ["Reference Range", "reference"]
-    ].forEach(([placeholder, key]) => {
+      ["Result", "result", ""],
+      ["Unit", "unit", defaults.unit || "أدخل الوحدة المعتمدة"],
+      ["Reference Range", "reference", "أدخل المعدل المرجعي المعتمد"]
+    ].forEach(([placeholder, key, defaultValue]) => {
       const label = document.createElement("label");
       label.textContent = placeholder;
 
@@ -252,14 +305,25 @@ function renderFields() {
       input.dataset.test = test;
       input.dataset.field = key;
 
+      if (key !== "result") {
+        input.value = defaultValue;
+      }
+
       label.appendChild(input);
       fields.appendChild(label);
     });
 
+    const note = document.createElement("p");
+    note.className = "muted";
+    note.textContent =
+      "راجع الوحدة والمعدل المرجعي وفق جهاز المختبر والكواشف والعمر والنوع قبل اعتماد النتيجة.";
+
     box.appendChild(fields);
+    box.appendChild(note);
     container.appendChild(box);
   });
 }
+
 
 function collectResults() {
   return selectedTests.map(test => {
