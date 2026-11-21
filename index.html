@@ -2400,4 +2400,28 @@ renderHistory();
 })();
 </script>
 
+<script>
+/* LabNova - Direct Result Entry */
+(function () {
+  const oldRender = window.renderFields;
+
+  function removeExtraSteps() {
+    document.querySelectorAll(".ln-profile-row").forEach(row => {
+      row.querySelectorAll("button").forEach(button => button.remove());
+      row.querySelectorAll(".ln-parameter-options").forEach(select => select.remove());
+    });
+  }
+
+  window.renderFields = function () {
+    if (typeof oldRender === "function") {
+      oldRender.apply(this, arguments);
+    }
+    removeExtraSteps();
+  };
+
+  document.addEventListener("DOMContentLoaded", removeExtraSteps);
+  setTimeout(removeExtraSteps, 100);
+})();
+</script>
+
 </html>
