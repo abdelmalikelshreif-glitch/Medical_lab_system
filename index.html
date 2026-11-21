@@ -2424,4 +2424,32 @@ renderHistory();
 })();
 </script>
 
+<script>
+/* LabNova - Correct Reference Number Direction */
+(function () {
+  function fixReferenceDirection() {
+    document.querySelectorAll(".ln-parameter-reference").forEach(input => {
+      input.dir = "ltr";
+      input.style.direction = "ltr";
+      input.style.textAlign = "left";
+      input.style.unicodeBidi = "isolate";
+    });
+  }
+
+  const previousRender = window.renderFields;
+  window.renderFields = function () {
+    if (typeof previousRender === "function") {
+      previousRender.apply(this, arguments);
+    }
+    fixReferenceDirection();
+  };
+
+  document.addEventListener("DOMContentLoaded", fixReferenceDirection);
+  new MutationObserver(fixReferenceDirection).observe(
+    document.getElementById("resultFields"),
+    { childList: true, subtree: true }
+  );
+})();
+</script>
+
 </html>
