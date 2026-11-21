@@ -511,5 +511,110 @@ renderTests();
 renderFields();
 renderHistory();
 </script>
+<script>
+(function () {
+  const main = document.querySelector("main");
+  const nav = document.querySelector("nav");
+
+  const archiveButton = document.createElement("button");
+  archiveButton.className = "tab";
+  archiveButton.textContent = "الأرشيف وإعادة الطباعة";
+  nav.appendChild(archiveButton);
+
+  const archive = document.createElement("section");
+  archive.id = "archive";
+  archive.innerHTML = `
+    <h2>الأرشيف وإعادة الطباعة</h2>
+    <div class="actions">
+      <button id="archiveResults">النتائج المخبرية</button>
+      <button id="archiveInvoices">فواتير المرضى</button>
+    </div>
+    <div id="archiveResultsArea">
+      <h3>أرشيف النتائج المخبرية</h3>
+      <input id="archiveSearch" placeholder="بحث باسم المريض أو رقم الزيارة أو الفحص">
+      <input id="archiveDate" type="date">
+      <div id="archiveList"></div>
+    </div>
+    <div id="archiveInvoicesArea" style="display:none">
+      <h3>أرشيف فواتير المرضى</h3>
+      <p class="muted">سيتم تفعيل أرشيف الفواتير بعد إضافة نظام الفواتير المستقلة وحفظها.</p>
+    </div>
+  `;
+  main.appendChild(archive);
+
+  archiveButton.addEventListener("click", function () {
+    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll("main section").forEach(s => s.classList.remove("active"));
+    archiveButton.classList.add("active");
+    archive.classList.add("active");
+    renderArchive();
+  });
+
+  document.getElementById("archiveResults").onclick = function () {
+    document.getElementById("archiveResultsArea").style.display = "block";
+    document.getElementById("archiveInvoicesArea").style.display = "none";
+  };
+
+  document.getElementById("archiveInvoices").onclick = function () {
+    document.getElementById("archiveResultsArea").style.display = "none";
+    document.getElementById("archiveInvoicesArea").style.display = "block";
+  };
+
+  function renderArchive() {
+    const list = document.getElementById("archiveList");
+    const query = document.getElementById("archiveSearch").value.trim().toLowerCase();
+    const date = document.getElementById("archiveDate").value;
+
+    let visits = [];
+    try {
+      visits = JSON.parse(localStorage.getItem("labVisits") || "[]");
+    } catch (e) {}
+
+    visits = visits.filter(v => {
+      const text = [
+        v.patient, v.number, v.phone,
+        ...(v.results || []).map(r => r.name)
+      ].join(" ").toLowerCase();
+
+      return text.includes(query) && (!date || v.date === date);
+    });
+
+    list.innerHTML = "";
+
+    if (!visits.length) {
+      list.innerHTML = '<p class="muted">لا توجد نتائج محفوظة مطابقة للبحث.</p>';
+      return;
+    }
+
+    visits.forEach(visit => {
+      const card = document.createElement("div");
+      card.className = "visit";
+
+      const title = document.createElement("h3");
+      title.textContent = visit.patient || "مريض";
+
+      const info = document.createElement("p");
+      info.className = "muted";
+      info.textContent = "رقم الزيارة: " + visit.number +
+        " | التاريخ: " + (visit.date || "");
+
+      const tests = document.createElement("p");
+      tests.textContent = "الفحوصات: " +
+        (visit.results || []).map(r => r.name).join("، ");
+
+      const print = document.createElement("button");
+      print.textContent = "إعادة طباعة التقرير";
+      print.onclick = () => printVisit(visit);
+
+      card.append(title, info, tests, print);
+      list.appendChild(card);
+    });
+  }
+
+  document.getElementById("archiveSearch").addEventListener("input", renderArchive);
+  document.getElementById("archiveDate").addEventListener("change", renderArchive);
+
+})();
+</script>
 </body>
 </html>
