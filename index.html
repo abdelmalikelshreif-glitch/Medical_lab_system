@@ -601,7 +601,51 @@ renderHistory();
     </div>
     <div id="archiveInvoicesArea" style="display:none">
       <h3>أرشيف فواتير المرضى</h3>
-      <p class="muted">سيتم تفعيل أرشيف الفواتير بعد إضافة نظام الفواتير المستقلة وحفظها.</p>
+      
+<div class="grid">
+  <label>بحث عن فاتورة
+    <input id="invoiceSearch" placeholder="اسم المريض أو رقم الفاتورة">
+  </label>
+  <label>تاريخ الفاتورة
+    <input id="invoiceDate" type="date">
+  </label>
+</div>
+
+<div class="visit">
+  <h3>إنشاء فاتورة مريض جديدة</h3>
+  <div class="grid">
+    <label>اسم المريض
+      <input id="invoicePatient" placeholder="اسم المريض">
+    </label>
+    <label>رقم الزيارة
+      <input id="invoiceVisit" placeholder="رقم الزيارة">
+    </label>
+    <label>تاريخ الفاتورة
+      <input id="invoiceNewDate" type="date">
+    </label>
+  </div>
+  <h3 style="margin-top:15px">تفاصيل الفحوصات والأسعار</h3>
+  <div id="invoiceItems"></div>
+  <button type="button" id="addInvoiceItem">إضافة فحص</button>
+  <div class="grid" style="margin-top:15px">
+    <label>الخصم
+      <input id="invoiceDiscount" type="number" min="0" value="0">
+    </label>
+    <label>المبلغ المدفوع
+      <input id="invoicePaid" type="number" min="0" value="0">
+    </label>
+  </div>
+  <div id="invoiceTotals" class="visit">
+    إجمالي الفاتورة: 0
+    <br>المتبقي: 0
+  </div>
+  <button type="button" id="saveInvoice">حفظ الفاتورة</button>
+  <div id="invoiceMessage" class="success"></div>
+</div>
+
+<h3>الفواتير المحفوظة</h3>
+<div id="invoiceArchiveList"></div>
+
     </div>
   `;
   main.appendChild(archive);
@@ -680,5 +724,200 @@ renderHistory();
 
 })();
 </script>
+
+<script>
+(function () {
+  const KEY = "labInvoices";
+  const $ = id => document.getElementById(id);
+
+  function invoices() {
+    try {
+      return JSON.parse(localStorage.getItem(KEY) || "[]");
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function money(value) {
+    return Math.max(0, Number(value) || 0);
+  }
+
+  function addItem(name = "", price = "") {
+    const row = document.createElement("div");
+    row.className = "grid visit invoice-item";
+    row.style.gridTemplateColumns = "2fr 1fr auto";
+    row.innerHTML = `
+      <label>اسم الفحص
+        <input class="item-name" placeholder="اسم الفحص">
+      </label>
+      <label>السعر
+        <input class="item-price" type="number" min="0" value="0">
+      </label>
+      <button type="button" class="danger remove-item">حذف</button>
+    `;
+    row.querySelector(".item-name").value = name;
+    row.querySelector(".item-price").value = price;
+    row.querySelectorAll("input").forEach(input =>
+      input.addEventListener("input", calculate)
+    );
+    row.querySelector(".remove-item").onclick = () => {
+      row.remove();
+      calculate();
+    };
+    $("invoiceItems").appendChild(row);
+    calculate();
+  }
+
+  function calculate() {
+    const total = [...document.querySelectorAll(".item-price")]
+      .reduce((sum, input) => sum + money(input.value), 0);
+    const discount = money($("invoiceDiscount").value);
+    const paid = money($("invoicePaid").value);
+    const net = Math.max(0, total - discount);
+    const remaining = Math.max(0, net - paid);
+
+    $("invoiceTotals").innerHTML =
+      "إجمالي الفحوصات: " + total.toFixed(2) +
+      "<br>الخصم: " + discount.toFixed(2) +
+      "<br>الصافي بعد الخصم: " + net.toFixed(2) +
+      "<br>المدفوع: " + paid.toFixed(2) +
+      "<br><strong>المتبقي: " + remaining.toFixed(2) + "</strong>";
+
+    return { total, discount, paid, net, remaining };
+  }
+
+  function escapeText(value) {
+    return String(value ?? "").replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;",
+      '"': "&quot;", "'": "&#39;"
+    })[c]);
+  }
+
+  function saveInvoice() {
+    const patient = $("invoicePatient").value.trim();
+    const items = [...document.querySelectorAll(".invoice-item")].map(row => ({
+      name: row.querySelector(".item-name").value.trim(),
+      price: money(row.querySelector(".item-price").value)
+    })).filter(item => item.name);
+
+    if (!patient) return alert("يرجى كتابة اسم المريض.");
+    if (!items.length) return alert("أضف فحصاً واحداً على الأقل.");
+
+    const totals = calculate();
+    if (totals.paid > totals.net) {
+      return alert("المبلغ المدفوع أكبر من صافي الفاتورة.");
+    }
+
+    const list = invoices();
+    const invoice = {
+      id: Date.now(),
+      number: list.reduce((max, x) => Math.max(max, Number(x.number) || 0), 0) + 1,
+      patient,
+      visit: $("invoiceVisit").value.trim(),
+      date: $("invoiceNewDate").value,
+      items,
+      ...totals,
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      list.unshift(invoice);
+      localStorage.setItem(KEY, JSON.stringify(list));
+      $("invoiceMessage").textContent =
+        "تم حفظ الفاتورة رقم " + invoice.number + " بنجاح.";
+      $("invoiceMessage").style.display = "block";
+      renderArchive();
+    } catch (e) {
+      alert("تعذر حفظ الفاتورة. تأكد من مساحة التخزين.");
+    }
+  }
+
+  function printInvoice(invoice) {
+    const area = $("printArea");
+    const rows = invoice.items.map(item => `
+      <tr>
+        <td>${escapeText(item.name)}</td>
+        <td>${money(item.price).toFixed(2)}</td>
+      </tr>`).join("");
+
+    area.innerHTML = `
+      <div style="direction:rtl;font-family:Tahoma,Arial;color:#222">
+        <div style="text-align:center;border-bottom:3px solid #087b91">
+          <h1 style="color:#075477">مختبر التميز الطبي التخصصي</h1>
+          <h2>فاتورة مريض</h2>
+        </div>
+        <p>رقم الفاتورة: ${invoice.number}</p>
+        <p>اسم المريض: ${escapeText(invoice.patient)}</p>
+        <p>رقم الزيارة: ${escapeText(invoice.visit || "—")}</p>
+        <p>التاريخ: ${escapeText(invoice.date || "")}</p>
+        <table>
+          <thead><tr><th>الفحص</th><th>السعر</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <h3>الإجمالي: ${invoice.total.toFixed(2)}</h3>
+        <h3>الخصم: ${invoice.discount.toFixed(2)}</h3>
+        <h3>الصافي: ${invoice.net.toFixed(2)}</h3>
+        <h3>المدفوع: ${invoice.paid.toFixed(2)}</h3>
+        <h2 style="color:#b42318">المتبقي: ${invoice.remaining.toFixed(2)}</h2>
+        <p style="margin-top:55px">توقيع المستلم: ______________</p>
+      </div>`;
+    window.print();
+  }
+
+  function renderArchive() {
+    const list = $("invoiceArchiveList");
+    if (!list) return;
+
+    const query = $("invoiceSearch").value.trim().toLowerCase();
+    const date = $("invoiceDate").value;
+
+    const filtered = invoices().filter(invoice =>
+      (String(invoice.patient).toLowerCase().includes(query) ||
+       String(invoice.number).includes(query)) &&
+      (!date || invoice.date === date)
+    );
+
+    list.innerHTML = "";
+
+    if (!filtered.length) {
+      list.innerHTML = '<p class="muted">لا توجد فواتير مطابقة.</p>';
+      return;
+    }
+
+    filtered.forEach(invoice => {
+      const card = document.createElement("div");
+      card.className = "visit";
+
+      const title = document.createElement("h3");
+      title.textContent = invoice.patient;
+
+      const info = document.createElement("p");
+      info.className = "muted";
+      info.textContent = "فاتورة رقم: " + invoice.number +
+        " | التاريخ: " + (invoice.date || "") +
+        " | الصافي: " + invoice.net;
+
+      const print = document.createElement("button");
+      print.textContent = "إعادة طباعة الفاتورة";
+      print.onclick = () => printInvoice(invoice);
+
+      card.append(title, info, print);
+      list.appendChild(card);
+    });
+  }
+
+  $("addInvoiceItem").onclick = () => addItem();
+  $("saveInvoice").onclick = saveInvoice;
+  $("invoiceDiscount").addEventListener("input", calculate);
+  $("invoicePaid").addEventListener("input", calculate);
+  $("invoiceSearch").addEventListener("input", renderArchive);
+  $("invoiceDate").addEventListener("change", renderArchive);
+
+  $("invoiceNewDate").value = new Date().toISOString().slice(0, 10);
+  addItem();
+  renderArchive();
+})();
+</script>
+
 </body>
 </html>
