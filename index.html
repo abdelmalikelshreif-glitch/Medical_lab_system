@@ -2073,4 +2073,331 @@ renderHistory();
 })();
 </script>
 
+<script>
+/* LabNova - Detailed Urine & Stool Examination */
+(function () {
+  "use strict";
+
+  const profiles = {
+    "Urine Analysis": [
+      { group:"Physical Examination", items:[
+        ["Colour","Pale Yellow","",["Pale Yellow","Yellow","Dark Yellow","Amber","Red","Other"]],
+        ["Appearance","Clear","",["Clear","Slightly Cloudy","Cloudy","Turbid"]],
+        ["Specific Gravity","1.005–1.030","",[]],
+        ["pH","5.0–8.0","",[]]
+      ]},
+      { group:"Chemical Examination", items:[
+        ["Protein","Negative","",["Negative","Trace","+","++","+++"]],
+        ["Glucose","Negative","",["Negative","Trace","+","++","+++"]],
+        ["Ketones","Negative","",["Negative","Trace","+","++","+++"]],
+        ["Bilirubin","Negative","",["Negative","Trace","+","++","+++"]],
+        ["Urobilinogen","Normal","",["Normal","Increased"]],
+        ["Nitrite","Negative","",["Negative","Positive"]],
+        ["Blood","Negative","",["Negative","Trace","+","++","+++"]],
+        ["Leukocyte Esterase","Negative","",["Negative","Trace","+","++","+++"]]
+      ]},
+      { group:"Microscopic Examination", items:[
+        ["Pus Cells","0–5","/HPF",["0–5","6–10","11–20","Many"]],
+        ["RBCs","0–2","/HPF",["0–2","3–5","6–10","Many"]],
+        ["Epithelial Cells","Few","/HPF",["Nil","Few","Moderate","Many"]],
+        ["Casts","Nil","",["Nil","Hyaline","Granular","Other"]],
+        ["Crystals","Nil","",["Nil","Uric Acid","Calcium Oxalate","Triple Phosphate","Other"]],
+        ["Bacteria","Nil","",["Nil","Few","Moderate","Many"]],
+        ["Yeast Cells","Nil","",["Nil","Few","Moderate","Many"]],
+        ["Mucus Threads","Nil","",["Nil","Few","Moderate","Many"]]
+      ]}
+    ],
+    "Stool Analysis": [
+      { group:"Macroscopic Examination", items:[
+        ["Colour","Brown","",["Brown","Yellow","Green","Black","Red","Other"]],
+        ["Consistency","Formed","",["Formed","Soft","Loose","Watery"]],
+        ["Mucus","Absent","",["Absent","Present"]],
+        ["Blood","Absent","",["Absent","Present"]]
+      ]},
+      { group:"Microscopic Examination", items:[
+        ["Pus Cells","0–2","/HPF",["0–2","3–5","6–10","Many"]],
+        ["RBCs","0–2","/HPF",["0–2","3–5","6–10","Many"]],
+        ["Undigested Food","Nil","",["Nil","Few","Moderate","Many"]],
+        ["Muscle Fibres","Nil","",["Nil","Few","Moderate","Many"]],
+        ["Vegetable Cells","Few","",["Nil","Few","Moderate","Many"]],
+        ["Fat Globules","Nil","",["Nil","Few","Moderate","Many"]],
+        ["Starch Granules","Nil","",["Nil","Few","Moderate","Many"]],
+        ["Ova","Not Seen","",["Not Seen","Seen"]],
+        ["Cysts","Not Seen","",["Not Seen","Seen"]],
+        ["Trophozoites","Not Seen","",["Not Seen","Seen"]],
+        ["Yeast Cells","Nil","",["Nil","Few","Moderate","Many"]]
+      ]}
+    ]
+  };
+
+  const originalRenderFields = window.renderFields;
+  const originalCollectResults = window.collectResults;
+
+  function safe(value) {
+    return typeof escapeHTML === "function"
+      ? escapeHTML(value == null ? "" : value)
+      : String(value == null ? "" : value).replace(/[&<>"']/g, c => ({
+          "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+        })[c]);
+  }
+
+  function profileBox(test, oldResult) {
+    const section = typeof getTestSection === "function"
+      ? getTestSection(test) : null;
+    const box = document.createElement("div");
+    box.className = "test-fields";
+    box.style.setProperty("--c", section ? section.color : "#087b91");
+
+    const heading = document.createElement("strong");
+    heading.textContent = test;
+    heading.style.color = section ? section.color : "#087b91";
+    box.appendChild(heading);
+
+    const saved = Array.isArray(oldResult && oldResult.details)
+      ? oldResult.details : [];
+
+    profiles[test].forEach(group => {
+      const groupTitle = document.createElement("h4");
+      groupTitle.textContent = group.group;
+      groupTitle.style.cssText =
+        "margin:16px 0 8px;padding:9px;background:#eaf3f7;color:#075477;border-radius:7px";
+      box.appendChild(groupTitle);
+
+      group.items.forEach(([parameter, reference, unit, options]) => {
+        const previous = saved.find(x => x.parameter === parameter &&
+          x.section === group.group) || {};
+
+        const row = document.createElement("div");
+        row.className = "ln-profile-row";
+        row.dataset.test = test;
+        row.dataset.parameter = parameter;
+        row.dataset.section = group.group;
+        row.style.cssText =
+          "display:grid;grid-template-columns: minmax(120px,1fr) minmax(130px,1.2fr) minmax(110px,1fr);gap:8px;align-items:end;padding:9px 0;border-bottom:1px solid #e2eaf0";
+
+        const name = document.createElement("div");
+        name.innerHTML = "<strong>" + safe(parameter) + "</strong>";
+
+        const valueWrap = document.createElement("div");
+        const valueLabel = document.createElement("label");
+        valueLabel.textContent = "Result";
+        const value = document.createElement("input");
+        value.type = "text";
+        value.className = "ln-parameter-value";
+        value.value = previous.value || "";
+        value.placeholder = "Enter result";
+        valueLabel.appendChild(value);
+        valueWrap.appendChild(valueLabel);
+
+        if (options.length) {
+          const optionLine = document.createElement("div");
+          optionLine.style.cssText = "display:flex;gap:6px;align-items:center;margin-top:5px";
+
+          const plus = document.createElement("button");
+          plus.type = "button";
+          plus.textContent = "+";
+          plus.title = "Show options";
+          plus.style.cssText =
+            "padding:5px 12px;background:#087b91;font-size:17px;line-height:1";
+
+          const select = document.createElement("select");
+          select.className = "ln-parameter-options";
+          select.style.cssText = "display:none;margin:0;padding:7px";
+          select.innerHTML = '<option value="">Choose option</option>' +
+            options.map(option =>
+              '<option value="' + safe(option) + '">' + safe(option) + '</option>'
+            ).join("");
+
+          plus.addEventListener("click", () => {
+            select.style.display =
+              select.style.display === "none" ? "block" : "none";
+          });
+
+          select.addEventListener("change", () => {
+            if (select.value) value.value = select.value;
+          });
+
+          optionLine.append(plus, select);
+          valueWrap.appendChild(optionLine);
+        }
+
+        const referenceWrap = document.createElement("div");
+        const referenceLabel = document.createElement("label");
+        referenceLabel.textContent = "Reference";
+        const referenceInput = document.createElement("input");
+        referenceInput.type = "text";
+        referenceInput.className = "ln-parameter-reference";
+        referenceInput.value = previous.reference || reference;
+        referenceLabel.appendChild(referenceInput);
+        referenceWrap.appendChild(referenceLabel);
+
+        const unitWrap = document.createElement("div");
+        unitWrap.style.display = "none";
+        const unitInput = document.createElement("input");
+        unitInput.type = "text";
+        unitInput.className = "ln-parameter-unit";
+        unitInput.value = previous.unit || unit;
+
+        row.append(name, valueWrap, referenceWrap, unitWrap);
+        unitWrap.appendChild(unitInput);
+        box.appendChild(row);
+      });
+    });
+
+    if ((!saved.length) && oldResult && oldResult.result) {
+      const legacy = document.createElement("p");
+      legacy.className = "muted";
+      legacy.textContent = "Previous saved result: " + oldResult.result;
+      box.appendChild(legacy);
+    }
+
+    const note = document.createElement("p");
+    note.className = "muted";
+    note.textContent =
+      "Reference values are initial defaults. Verify them against your laboratory SOP and method.";
+    box.appendChild(note);
+
+    return box;
+  }
+
+  window.renderFields = function () {
+    if (typeof originalRenderFields === "function") {
+      originalRenderFields();
+    }
+
+    const container = document.getElementById("resultFields");
+    if (!container) return;
+
+    const seed = window.__labProfileEditSeed || [];
+    const selected = typeof selectedTests !== "undefined" ? selectedTests : [];
+
+    selected.forEach(test => {
+      if (!profiles[test]) return;
+
+      const old = seed.find(item => item.name === test) || null;
+      const boxes = [...container.querySelectorAll(".test-fields")];
+      const existing = boxes.find(item =>
+        item.querySelector("strong")?.textContent === test
+      );
+
+      const replacement = profileBox(test, old);
+      if (existing) existing.replaceWith(replacement);
+      else container.appendChild(replacement);
+    });
+  };
+
+  window.collectResults = function () {
+    const selected = typeof selectedTests !== "undefined" ? selectedTests : [];
+    const ordinary = typeof originalCollectResults === "function"
+      ? originalCollectResults().filter(item => !profiles[item.name])
+      : [];
+
+    return selected.map(test => {
+      if (!profiles[test]) {
+        return ordinary.find(item => item.name === test) ||
+          { name:test, result:"", unit:"", reference:"" };
+      }
+
+      const rows = [...document.querySelectorAll(
+        '.ln-profile-row[data-test="' + CSS.escape(test) + '"]'
+      )];
+
+      const details = rows.map(row => ({
+        section: row.dataset.section,
+        parameter: row.dataset.parameter,
+        value: row.querySelector(".ln-parameter-value")?.value.trim() || "",
+        reference: row.querySelector(".ln-parameter-reference")?.value.trim() || "",
+        unit: row.querySelector(".ln-parameter-unit")?.value.trim() || ""
+      }));
+
+      return { name:test, details };
+    });
+  };
+
+  // Load saved detailed values when an existing visit is opened for editing.
+  document.addEventListener("click", function (event) {
+    const button = event.target.closest(".edit-visit-button");
+    if (!button) return;
+
+    const card = button.closest(".visit");
+    if (!card) return;
+
+    const heading = card.querySelector("h3")?.textContent || "";
+    const numberMatch = card.textContent.match(/رقم الزيارة:\s*(\d+)/);
+    const visits = typeof getVisits === "function" ? getVisits() : [];
+    const visit = visits.find(v =>
+      v.patient === heading &&
+      (!numberMatch || String(v.number) === numberMatch[1])
+    );
+
+    window.__labProfileEditSeed = visit ? (visit.results || []) : [];
+    Promise.resolve().then(() => {
+      window.__labProfileEditSeed = [];
+    });
+  }, true);
+
+  // Print each urine/stool parameter on its own row.
+  window.printVisit = function (visit) {
+    const area = document.getElementById("printArea");
+    if (!area) return;
+
+    const rows = (visit.results || []).map(result => {
+      const section = typeof getTestSection === "function"
+        ? getTestSection(result.name) : null;
+      const color = section ? section.color : "#2563a6";
+
+      if (profiles[result.name] && Array.isArray(result.details)) {
+        let html = '<tr><th colspan="4" style="text-align:right;background:#eaf3f7;color:' +
+          color + '">' + safe(result.name) + '</th></tr>';
+        let lastGroup = "";
+
+        result.details.forEach(detail => {
+          if (detail.section !== lastGroup) {
+            lastGroup = detail.section;
+            html += '<tr><th colspan="4" style="text-align:right">' +
+              safe(lastGroup) + '</th></tr>';
+          }
+          html += "<tr><td>" + safe(detail.parameter) +
+            "</td><td>" + safe(detail.value) +
+            "</td><td>" + safe(detail.unit) +
+            "</td><td>" + safe(detail.reference) + "</td></tr>";
+        });
+        return html;
+      }
+
+      return '<tr><td style="color:' + color + ';font-weight:bold">' +
+        safe(result.name) + "</td><td>" + safe(result.result) +
+        "</td><td>" + safe(result.unit) +
+        "</td><td>" + safe(result.reference) + "</td></tr>";
+    }).join("");
+
+    area.innerHTML = `
+      <div style="font-family:Arial,Tahoma,sans-serif;direction:rtl;color:#222">
+        <div style="text-align:center;border-bottom:3px solid #087b91;padding-bottom:12px">
+          <h1 style="color:#075477">مختبر التميز الطبي التخصصي</h1>
+          <h3>Laboratory Test Report</h3>
+        </div>
+        <h3>بيانات المريض</h3>
+        <p>اسم المريض: ${safe(visit.patient)}</p>
+        <p>رقم الزيارة: ${safe(visit.number)} | التاريخ: ${safe(visit.date || "")}</p>
+        <p>العمر: ${safe(visit.age || "")} | النوع: ${safe(visit.gender || "")}</p>
+        <p>الهاتف: ${safe(visit.phone || "")} | الطبيب المحول: ${safe(visit.doctor || "")}</p>
+        <table style="width:100%;border-collapse:collapse;margin-top:12px">
+          <thead><tr>
+            <th>Parameter / Test</th><th>Result</th><th>Unit</th><th>Reference</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <p style="margin-top:20px">ملاحظات: ${safe(visit.notes || "")}</p>
+        <div style="margin-top:65px;display:flex;justify-content:space-between">
+          <span>توقيع المختص: ______________</span>
+          <span>الختم: ______________</span>
+        </div>
+      </div>`;
+    window.print();
+  };
+
+})();
+</script>
+
 </html>
