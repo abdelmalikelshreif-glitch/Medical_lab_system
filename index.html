@@ -1760,4 +1760,175 @@ renderHistory();
 })();
 </script>
 
+<script>
+/* LabNova - English Reference Ranges */
+(function () {
+  "use strict";
+
+  const KEY = "labReferenceRanges";
+
+  // English reference descriptions for the built-in test catalog.
+  const englishDefaults = {
+    "ESR": "Male: 0–15 | Female: 0–20",
+    "Reticulocyte Count": "0.5–2.5",
+    "Glucose": "Fasting: 70–99 | Random: Interpret according to clinical context",
+    "RBS": "Random: Interpret according to clinical context; no single cutoff is used for diagnosis",
+    "Urea": "15–40",
+    "Creatinine": "Male: 0.7–1.3 | Female: 0.6–1.1",
+    "ALT": "Male: Up to 40 | Female: Up to 31",
+    "AST": "Male: Up to 37 | Female: Up to 31",
+    "Bilirubin Total": "0.1–1.2",
+    "Bilirubin Direct": "0.0–0.3",
+    "Albumin": "3.5–5.0",
+    "Total Protein": "6.0–8.3",
+    "Uric Acid": "Male: 3.5–7.2 | Female: 2.6–6.0",
+    "Cholesterol": "Desirable: Less than 200",
+    "Triglycerides": "Fasting: Less than 150",
+    "Calcium": "8.5–10.5",
+    "Sodium": "135–145",
+    "Potassium": "3.5–5.1",
+    "CRP": "Less than 5 (method-dependent)",
+    "ASO": "Depends on age and reagent",
+    "RF": "Usually less than 14; reagent-dependent",
+    "PT": "Approximately 11–13.5; analyzer and reagent-dependent",
+    "INR": "0.8–1.2 for patients not receiving anticoagulants",
+    "APTT": "Approximately 25–35; analyzer and reagent-dependent",
+    "H. pylori Antibody": "According to the manufacturer's instructions",
+    "HCV Antibody": "Non-reactive",
+    "HBsAg": "Non-reactive",
+    "HIV": "Non-reactive",
+    "Widal Test": "Depends on local baseline values and test method",
+    "Pregnancy Test": "Negative",
+    "HCG": "Non-pregnant: Depends on assay sensitivity",
+    "ICT for malaria": "Negative",
+    "Malaria Parasite": "No malaria parasites seen",
+    "Blood Group": "Determined by testing",
+    "Rh Factor": "Determined by testing",
+    "Urine Analysis": "Refer to individual reference values for each urine parameter",
+    "Stool Analysis": "No pathogenic parasites or ova detected",
+    "Urine Culture": "No significant growth",
+    "Stool Culture": "No pathogenic growth",
+    "Sputum Culture": "No significant pathogenic growth",
+    "Blood Film": "Interpret according to microscopic examination",
+    "Hb Electrophoresis": "Depends on age and method",
+    "CBC": "CBC parameters are reported individually according to the analyzer; there is no single reference range for CBC",
+    "BFFM": "No malaria parasites seen",
+    "UG": "Depends on test type and measurement method",
+    "Stool G": "No pathogenic parasites or ova detected",
+    "Dengue fever quantitative": "Depends on the reagent and analyte"
+  };
+
+  const replacements = [
+    [/صائم/g, "Fasting"],
+    [/عشوائي/g, "Random"],
+    [/ذكر/g, "Male"],
+    [/أنثى/g, "Female"],
+    [/مرغوب/g, "Desirable"],
+    [/أقل من|اقل من/g, "Less than"],
+    [/أكثر من|اكثر من/g, "Greater than"],
+    [/حتى/g, "Up to"],
+    [/تقريباً|تقريبا/g, "Approximately"],
+    [/غالباً|غالبا/g, "Usually"],
+    [/حسب طريقة القياس/g, "Method-dependent"],
+    [/حسب طريقة الفحص/g, "According to the test method"],
+    [/حسب الشركة المصنعة للكاشف/g, "According to the reagent manufacturer's instructions"],
+    [/حسب الكاشف/g, "Reagent-dependent"],
+    [/يعتمد على خط الأساس المحلي وطريقة الفحص/g, "Depends on local baseline values and test method"],
+    [/يحدد حسب العمر والكاشف/g, "Depends on age and reagent"],
+    [/غير الحوامل/g, "Non-pregnant"],
+    [/لا توجد طفيليات أو بويضات مرضية/g, "No pathogenic parasites or ova detected"],
+    [/راجع القيم الطبيعية لكل عنصر في تحليل البول/g, "Refer to individual reference values for each urine parameter"],
+    [/وصف حسب الفحص المجهري/g, "Interpret according to microscopic examination"],
+    [/حسب العمر والطريقة/g, "Depends on age and method"],
+    [/حسب نوع الفحص وطريقة القياس/g, "Depends on test type and measurement method"],
+    [/يحدد بالفحص/g, "Determined by testing"],
+    [/تُعرض مؤشرات CBC منفصلة حسب الجهاز؛ لا يوجد مدى واحد للـ CBC/g, "CBC parameters are reported individually according to the analyzer; there is no single reference range for CBC"],
+    [/يفسر حسب الحالة/g, "Interpret according to clinical context"],
+    [/لا يعتمد حد واحد للتشخيص/g, "No single cutoff is used for diagnosis"],
+    [/حسب الجهاز والكاشف/g, "Analyzer and reagent-dependent"],
+    [/لغير مستخدمي مضادات التخثر/g, "for patients not receiving anticoagulants"]
+  ];
+
+  function translate(value) {
+    if (typeof value !== "string") return value;
+    let result = value;
+    replacements.forEach(([pattern, replacement]) => {
+      result = result.replace(pattern, replacement);
+    });
+    return result;
+  }
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
+
+    Object.keys(englishDefaults).forEach(test => {
+      const item = saved[test] || {};
+      const oldDefault = {
+        "ESR": "ذكر: 0–15 | أنثى: 0–20",
+        "Glucose": "صائم: 70–99 | عشوائي: يفسر حسب الحالة",
+        "RBS": "عشوائي: يفسر حسب الحالة؛ لا يعتمد حد واحد للتشخيص",
+        "Creatinine": "ذكر: 0.7–1.3 | أنثى: 0.6–1.1",
+        "ALT": "ذكر: حتى 40 | أنثى: حتى 31",
+        "AST": "ذكر: حتى 37 | أنثى: حتى 31",
+        "Uric Acid": "ذكر: 3.5–7.2 | أنثى: 2.6–6.0",
+        "Cholesterol": "مرغوب: أقل من 200",
+        "Triglycerides": "صائم: أقل من 150",
+        "CRP": "أقل من 5 (حسب طريقة القياس)",
+        "ASO": "يحدد حسب العمر والكاشف",
+        "RF": "غالباً أقل من 14؛ حسب الكاشف",
+        "PT": "تقريباً 11–13.5؛ حسب الجهاز والكاشف",
+        "APTT": "تقريباً 25–35؛ حسب الجهاز والكاشف",
+        "H. pylori Antibody": "حسب الشركة المصنعة للكاشف",
+        "Widal Test": "يعتمد على خط الأساس المحلي وطريقة الفحص",
+        "HCG": "غير الحوامل: حسب حساسية الكاشف",
+        "Blood Group": "يحدد بالفحص",
+        "Rh Factor": "يحدد بالفحص",
+        "Urine Analysis": "راجع القيم الطبيعية لكل عنصر في تحليل البول",
+        "Stool Analysis": "لا توجد طفيليات أو بويضات مرضية",
+        "Blood Film": "وصف حسب الفحص المجهري",
+        "Hb Electrophoresis": "حسب العمر والطريقة",
+        "CBC": "تُعرض مؤشرات CBC منفصلة حسب الجهاز؛ لا يوجد مدى واحد للـ CBC",
+        "UG": "حسب نوع الفحص وطريقة القياس",
+        "Stool G": "لا توجد طفيليات أو بويضات مرضية",
+        "Dengue fever quantitative": "حسب الكاشف ونوع المؤشر"
+      };
+
+      if (!item.reference || item.reference === oldDefault[test]) {
+        item.reference = englishDefaults[test];
+      } else {
+        item.reference = translate(item.reference);
+      }
+
+      if (item.profiles) {
+        Object.keys(item.profiles).forEach(profile => {
+          item.profiles[profile] = translate(item.profiles[profile]);
+        });
+      }
+
+      const unitTranslations = {
+        "حسب طريقة الفحص": "According to test method",
+        "حسب طريقة القياس": "According to measurement method",
+        "وصف مجهري": "Microscopic description",
+        "وصف الفحص": "Examination description",
+        "وصف الزراعة": "Culture description",
+        "متعدد الوحدات": "Multiple units",
+        "وصف مجهري": "Microscopic description",
+        "وصف الزراعة": "Culture description"
+      };
+
+      if (unitTranslations[item.unit]) {
+        item.unit = unitTranslations[item.unit];
+      }
+
+      saved[test] = item;
+    });
+
+    localStorage.setItem(KEY, JSON.stringify(saved));
+    console.log("LabNova: English reference descriptions updated.");
+  } catch (error) {
+    console.error("LabNova English update error:", error);
+  }
+})();
+</script>
+
 </html>
