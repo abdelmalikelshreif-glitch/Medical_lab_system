@@ -2890,4 +2890,22 @@ document.getElementById("customTests").classList.add("active");
 })();
 </script>
   
+<style>
+.reference-range,
+.reference-value,
+.ref-range {
+  direction: ltr !important;
+  unicode-bidi: isolate !important;
+}
+</style>
+
+<script>
+document.querySelectorAll(
+  '.reference-range, .reference-value, .ref-range'
+).forEach(function(el) {
+  el.style.direction = 'ltr';
+  el.style.unicodeBidi = 'isolate';
+});
+</script>
+
 </html>
