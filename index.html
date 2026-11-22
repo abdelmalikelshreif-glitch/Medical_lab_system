@@ -3011,4 +3011,126 @@ document.querySelectorAll(
 })();
 </script>
 
+<style>
+/* المعدلات المرجعية: الأصغر يميناً والأكبر يساراً */
+.ln-reference-desc {
+  direction: rtl !important;
+  unicode-bidi: isolate !important;
+  text-align: right !important;
+}
+
+/* النتائج غير الطبيعية */
+.ln-abnormal-result,
+.ln-abnormal-result input {
+  color: #d00000 !important;
+  font-weight: bold !important;
+}
+
+@media print {
+  .ln-abnormal-result {
+    color: #d00000 !important;
+    font-weight: bold !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+</style>
+
+<script>
+(function () {
+  "use strict";
+
+  // عكس النطاق العددي فقط إذا كان الأصغر أولاً.
+  function fixReference(el) {
+    if (!el) return;
+
+    const value = "value" in el ? el.value : el.textContent;
+    const match = String(value).match(
+      /^(\s*)(-?\d+(?:[.,]\d+)?)(\s*[-–—]\s*)(-?\d+(?:[.,]\d+)?)(\s*)$/
+    );
+
+    if (!match) return;
+
+    const first = Number(match[2].replace(",", "."));
+    const second = Number(match[4].replace(",", "."));
+
+    if (!Number.isFinite(first) || !Number.isFinite(second)) return;
+
+    if (first < second) {
+      const corrected =
+        match[1] + match[4] + match[3] + match[2] + match[5];
+
+      if ("value" in el) el.value = corrected;
+      else el.textContent = corrected;
+    }
+
+    el.classList.add("ln-reference-desc");
+  }
+
+  function checkResult(result, reference) {
+    if (!result || !reference) return;
+
+    const value = Number(
+      String(result.value).trim().replace(",", ".")
+    );
+
+    const match = String(reference.value).match(
+      /^\s*(-?\d+(?:[.,]\d+)?)\s*[-–—]\s*(-?\d+(?:[.,]\d+)?)\s*$/
+    );
+
+    let flag = "";
+
+    if (String(result.value).trim() && Number.isFinite(value) && match) {
+      const a = Number(match[1].replace(",", "."));
+      const b = Number(match[2].replace(",", "."));
+      const min = Math.min(a, b);
+      const max = Math.max(a, b);
+
+      if (value < min) flag = "↓";
+      if (value > max) flag = "↑";
+    }
+
+    result.classList.toggle("ln-abnormal-result", Boolean(flag));
+    result.dataset.abnormal = flag ? "true" : "false";
+    result.title = flag
+      ? "نتيجة خارج المعدل المرجعي " + flag
+      : "";
+
+    result.style.color = flag ? "#d00000" : "";
+    result.style.fontWeight = flag ? "bold" : "";
+  }
+
+  function updateLabNova() {
+    document.querySelectorAll(
+      '#resultFields input[data-field="reference"], .ln-parameter-reference, .reference-range, .reference-value, .ref-range'
+    ).forEach(fixReference);
+
+    document.querySelectorAll("#resultFields .test-fields").forEach(box => {
+      checkResult(
+        box.querySelector('input[data-field="result"]'),
+        box.querySelector('input[data-field="reference"]')
+      );
+    });
+
+    document.querySelectorAll(".ln-profile-row").forEach(row => {
+      checkResult(
+        row.querySelector(".ln-parameter-value"),
+        row.querySelector(".ln-parameter-reference")
+      );
+    });
+  }
+
+  document.addEventListener("input", updateLabNova);
+  document.addEventListener("change", updateLabNova);
+
+  const observer = new MutationObserver(updateLabNova);
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  updateLabNova();
+})();
+</script>
+
 </html>
