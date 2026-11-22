@@ -2452,4 +2452,43 @@ renderHistory();
 })();
 </script>
 
+<script>
+/* LabNova - Final Print Direction Fix */
+(function () {
+  const originalPrint = window.print.bind(window);
+
+  window.print = function () {
+    const area = document.getElementById("printArea");
+
+    if (area) {
+      area.querySelectorAll("td, th").forEach(cell => {
+        const content = cell.textContent;
+
+        cell.innerHTML =
+          '<bdi dir="ltr" style="' +
+          'direction:ltr;' +
+          'unicode-bidi:isolate;' +
+          'display:inline-block;' +
+          'text-align:center;' +
+          '">' + 
+          content.replace(/[&<>"']/g, c => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+          })[c]) +
+          '</bdi>';
+
+        cell.style.direction = "ltr";
+        cell.style.textAlign = "center";
+        cell.style.unicodeBidi = "isolate";
+      });
+    }
+
+    originalPrint();
+  };
+})();
+</script>
+
 </html>
