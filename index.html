@@ -2908,4 +2908,107 @@ document.querySelectorAll(
 });
 </script>
 
+<style>
+.ln-abnormal-result {
+  color: #d00000 !important;
+  font-weight: bold !important;
+}
+</style>
+
+<script>
+(function () {
+  "use strict";
+
+  function getBounds(reference) {
+    if (!reference || /[|;]/.test(reference) ||
+        /male|female|ذكر|أنثى|child|أطفال/i.test(reference)) {
+      return null;
+    }
+
+    const nums = reference.match(
+      /-?\d+(?:[.,]\d+)?/g
+    );
+
+    if (!nums || nums.length !== 2) return null;
+
+    const a = Number(nums[0].replace(",", "."));
+    const b = Number(nums[1].replace(",", "."));
+
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+
+    return { min: Math.min(a, b), max: Math.max(a, b) };
+  }
+
+  function check(value, reference) {
+    const n = Number(String(value).trim().replace(",", "."));
+    const bounds = getBounds(reference);
+
+    if (!String(value).trim() || !Number.isFinite(n) || !bounds) {
+      return "";
+    }
+
+    if (n < bounds.min) return "↓";
+    if (n > bounds.max) return "↑";
+
+    return "";
+  }
+
+  function updateResults() {
+    document.querySelectorAll("#resultFields .test-fields")
+      .forEach(box => {
+        const result = box.querySelector(
+          'input[data-field="result"]'
+        );
+        const reference = box.querySelector(
+          'input[data-field="reference"]'
+        );
+
+        if (!result || !reference) return;
+
+        const flag = check(result.value, reference.value);
+
+        result.classList.toggle(
+          "ln-abnormal-result", Boolean(flag)
+        );
+
+        result.title = flag
+          ? "نتيجة خارج المعدل المرجعي " + flag
+          : "";
+      });
+
+    document.querySelectorAll(".ln-profile-row")
+      .forEach(row => {
+        const result = row.querySelector(".ln-parameter-value");
+        const reference = row.querySelector(".ln-parameter-reference");
+
+        if (!result || !reference) return;
+
+        const flag = check(result.value, reference.value);
+
+        result.classList.toggle(
+          "ln-abnormal-result", Boolean(flag)
+        );
+
+        result.title = flag
+          ? "نتيجة خارج المعدل المرجعي " + flag
+          : "";
+      });
+  }
+
+  document.addEventListener("input", updateResults);
+  document.addEventListener("change", updateResults);
+
+  const target = document.getElementById("resultFields");
+
+  if (target) {
+    new MutationObserver(updateResults).observe(target, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  setTimeout(updateResults, 300);
+})();
+</script>
+
 </html>
