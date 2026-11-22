@@ -2491,4 +2491,391 @@ renderHistory();
 })();
 </script>
 
+/* LabNova - Custom Test & Component Manager */
+(function () {
+  "use strict";
+
+  const KEY = "labCustomTestDefinitions";
+  const $ = id => document.getElementById(id);
+
+  function safe(value) {
+    return String(value ?? "").replace(/[&<>"']/g, c => ({
+      "&":"&amp;", "<":"&lt;", ">":"&gt;",
+      '"':"&quot;", "'":"&#39;"
+    })[c]);
+  }
+
+  function loadDefinitions() {
+    try {
+      return JSON.parse(localStorage.getItem(KEY) || "[]");
+    } catch (e) {
+      return [];
+    }
+  }
+
+  let definitions = loadDefinitions();
+
+  function saveDefinitions() {
+    localStorage.setItem(KEY, JSON.stringify(definitions));
+  }
+
+  function installDefinition(def) {
+    sections.forEach(section => {
+      section.tests = section.tests.filter(name =>
+        name !== def.name && name !== def.previousName
+      );
+    });
+
+    let target = sections.find(s => s.name === def.category);
+    if (!target) {
+      target = { name:def.category, color:"#477eae", tests:[] };
+      sections.push(target);
+    }
+
+    if (!target.tests.includes(def.name)) {
+      target.tests.push(def.name);
+    }
+
+    testCatalog[def.name] = { unit:def.unit || "Qualitative" };
+  }
+
+  definitions.forEach(installDefinition);
+
+  // Add the management tab and its screen.
+  const nav = document.querySelector("nav");
+  if (nav && !$("customTestsTab")) {
+    const tab = document.createElement("button");
+    tab.id = "customTestsTab";
+    tab.className = "tab";
+    tab.dataset.tab = "customTests";
+    tab.textContent = "إدارة الفحوصات";
+    nav.appendChild(tab);
+
+    const screen = document.createElement("section");
+    screen.id = "customTests";
+    screen.innerHTML = `
+      <h2>إدارة الفحوصات ومكوّنات النتائج</h2>
+      <p class="muted">
+        أضف الفحص وحدد مكوّناته وخيارات النتائج وفق الكاشف المستخدم.
+      </p>
+
+      <div class="grid">
+        <label>اسم الفحص
+          <input id="ctName" placeholder="ICT for Dengue Fever">
+        </label>
+        <label>القسم
+          <select id="ctCategory"></select>
+        </label>
+        <label>الوحدة أو نوع النتيجة
+          <input id="ctUnit" value="Qualitative">
+        </label>
+      </div>
+
+      <h3 style="margin-top:20px">مكوّنات الفحص</h3>
+      <p class="muted">
+        اكتب كل مكوّن في سطر مستقل بهذا الشكل:
+        IgG | Positive, Negative
+      </p>
+      <textarea id="ctComponents" rows="6"
+        placeholder="IgG | Positive, Negative&#10;IgM | Positive, Negative"></textarea>
+
+      <div class="actions" style="margin-top:12px">
+        <button id="ctSave">حفظ الفحص</button>
+        <button id="ctClear" type="button" style="background:#647786">
+          فحص جديد
+        </button>
+      </div>
+
+      <h3 style="margin-top:24px">الفحوصات المضافة</h3>
+      <div id="ctList"></div>
+      <p class="muted">
+        حذف تعريف الفحص لا يحذف النتائج القديمة المحفوظة في الزيارات.
+      </p>
+    `;
+    document.querySelector("main").appendChild(screen);
+  }
+
+  function refreshCategories() {
+    const select = $("ctCategory");
+    if (!select) return;
+
+    const previous = select.value;
+    select.innerHTML = sections.map(s =>
+      `<option value="${safe(s.name)}">${safe(s.name)}</option>`
+    ).join("");
+
+    if (previous && sections.some(s => s.name === previous)) {
+      select.value = previous;
+    }
+  }
+
+  function clearEditor() {
+    $("ctName").value = "";
+    $("ctUnit").value = "Qualitative";
+    $("ctComponents").value = "";
+    $("ctSave").dataset.editing = "";
+  }
+
+  function editDefinition(index) {
+    const def = definitions[index];
+    if (!def) return;
+
+    $("ctName").value = def.name;
+    $("ctCategory").value = def.category;
+    $("ctUnit").value = def.unit || "Qualitative";
+    $("ctComponents").value = (def.components || []).map(c =>
+      c.name + " | " + c.options.join(", ")
+    ).join("\n");
+
+    $("ctSave").dataset.editing = String(index);
+    window.scrollTo({ top:0, behavior:"smooth" });
+  }
+
+  function renderDefinitionList() {
+    const list = $("ctList");
+    if (!list) return;
+
+    if (!definitions.length) {
+      list.innerHTML = '<p class="muted">لا توجد فحوصات مضافة بعد.</p>';
+      return;
+    }
+
+    list.innerHTML = definitions.map((def, index) => `
+      <div class="visit">
+        <strong>${safe(def.name)}</strong>
+        <p class="muted">${safe(def.category)} · ${safe(def.unit)}</p>
+        <p>${(def.components || []).map(c =>
+          safe(c.name) + ": " + c.options.map(safe).join(" / ")
+        ).join("<br>")}</p>
+        <button type="button" data-edit="${index}">تعديل</button>
+        <button type="button" class="danger" data-delete="${index}">
+          حذف التعريف
+        </button>
+      </div>
+    `).join("");
+
+    list.querySelectorAll("[data-edit]").forEach(button => {
+      button.addEventListener("click", () =>
+        editDefinition(Number(button.dataset.edit))
+      );
+    });
+
+    list.querySelectorAll("[data-delete]").forEach(button => {
+      button.addEventListener("click", () => {
+        const index = Number(button.dataset.delete);
+        const def = definitions[index];
+        if (!def || !confirm("حذف تعريف هذا الفحص؟")) return;
+
+        sections.forEach(section => {
+          section.tests = section.tests.filter(n => n !== def.name);
+        });
+
+        definitions.splice(index, 1);
+        saveDefinitions();
+        renderTests();
+        renderFields();
+        renderDefinitionList();
+      });
+    });
+  }
+
+  function saveDefinition() {
+    const name = $("ctName").value.trim();
+    const category = $("ctCategory").value;
+    const unit = $("ctUnit").value.trim() || "Qualitative";
+    const editing = $("ctSave").dataset.editing;
+
+    if (!name) {
+      alert("اكتب اسم الفحص أولاً.");
+      $("ctName").focus();
+      return;
+    }
+
+    const components = $("ctComponents").value
+      .split("\n")
+      .map(line => line.trim())
+      .filter(Boolean)
+      .map(line => {
+        const parts = line.split("|");
+        return {
+          name:(parts[0] || "").trim(),
+          options:(parts[1] || "Positive, Negative")
+            .split(",").map(x => x.trim()).filter(Boolean)
+        };
+      })
+      .filter(c => c.name && c.options.length);
+
+    if (!components.length) {
+      alert("أضف مكوّناً واحداً على الأقل مع خيارات نتائجه.");
+      return;
+    }
+
+    const duplicate = definitions.findIndex((d, i) =>
+      d.name.toLowerCase() === name.toLowerCase() &&
+      String(i) !== editing
+    );
+
+    if (duplicate !== -1 ||
+        (testCatalog[name] && String(editing) === "")) {
+      alert("اسم الفحص موجود مسبقاً. اختر اسماً آخر.");
+      return;
+    }
+
+    const old = editing === "" ? null : definitions[Number(editing)];
+    const def = { name, category, unit, components };
+
+    if (old) {
+      def.previousName = old.name;
+      definitions[Number(editing)] = def;
+
+      if (old.name !== name && selectedTests.includes(old.name)) {
+        selectedTests = selectedTests.map(n => n === old.name ? name : n);
+      }
+    } else {
+      definitions.push(def);
+    }
+
+    installDefinition(def);
+    saveDefinitions();
+    refreshCategories();
+    clearEditor();
+    renderDefinitionList();
+    renderTests();
+    renderFields();
+
+    alert("تم حفظ تعريف الفحص على هذا الجهاز.");
+  }
+
+  // Draw component fields for custom tests.
+  const previousRenderFields = window.renderFields;
+
+  window.renderFields = function () {
+    if (typeof previousRenderFields === "function") {
+      previousRenderFields.apply(this, arguments);
+    }
+
+    const container = $("resultFields");
+    if (!container) return;
+
+    definitions.forEach(def => {
+      if (!selectedTests.includes(def.name)) return;
+
+      const existing = [...container.querySelectorAll(".test-fields")]
+        .find(box => box.querySelector("strong")?.textContent === def.name);
+
+      if (existing) existing.remove();
+
+      const box = document.createElement("div");
+      box.className = "test-fields";
+      box.style.setProperty("--c", "#477eae");
+
+      const heading = document.createElement("strong");
+      heading.textContent = def.name;
+      heading.style.color = "#477eae";
+      box.appendChild(heading);
+
+      const grid = document.createElement("div");
+      grid.className = "fields-grid";
+
+      def.components.forEach(component => {
+        const label = document.createElement("label");
+        label.textContent = component.name;
+
+        const select = document.createElement("select");
+        select.className = "ln-custom-component";
+        select.dataset.test = def.name;
+        select.dataset.component = component.name;
+
+        select.innerHTML =
+          '<option value="">Select result</option>' +
+          component.options.map(option =>
+            `<option value="${safe(option)}">${safe(option)}</option>`
+          ).join("");
+
+        label.appendChild(select);
+        grid.appendChild(label);
+      });
+
+      const unit = document.createElement("p");
+      unit.className = "muted";
+      unit.textContent = "Result type: " + def.unit;
+
+      box.append(grid, unit);
+      container.appendChild(box);
+    });
+  };
+
+  // Include component results in the saved visit.
+  const previousCollectResults = window.collectResults;
+
+  window.collectResults = function () {
+    const results = typeof previousCollectResults === "function"
+      ? previousCollectResults()
+      : [];
+
+    return results.map(result => {
+      const def = definitions.find(d => d.name === result.name);
+      if (!def) return result;
+
+      const components = [
+        ...document.querySelectorAll(
+          '.ln-custom-component[data-test="' +
+          CSS.escape(def.name) + '"]'
+        )
+      ].map(input => ({
+        name: input.dataset.component,
+        value: input.value
+      }));
+
+      return {
+        name: result.name,
+        unit: def.unit,
+        components
+      };
+    });
+  };
+
+  // Show component results in printed reports and archived visits.
+  const previousPrintVisit = window.printVisit;
+
+  window.printVisit = function (visit) {
+    const copy = {
+      ...visit,
+      results:(visit.results || []).map(result => {
+        if (!Array.isArray(result.components)) return result;
+
+        return {
+          ...result,
+          result:result.components.map(c =>
+            c.name + ": " + (c.value || "—")
+          ).join(" | ")
+        };
+      })
+    };
+
+    if (typeof previousPrintVisit === "function") {
+      previousPrintVisit(copy);
+    }
+  };
+
+  // Tab navigation for the new screen.
+  document.addEventListener("click", event => {
+    const button = event.target.closest(".tab[data-tab]");
+    if (!button) return;
+
+    if (button.dataset.tab === "customTests") {
+      refreshCategories();
+      renderDefinitionList();
+    }
+  });
+
+  $("ctSave").addEventListener("click", saveDefinition);
+  $("ctClear").addEventListener("click", clearEditor);
+
+  refreshCategories();
+  renderTests();
+  renderFields();
+  renderDefinitionList();
+})();
+
 </html>
