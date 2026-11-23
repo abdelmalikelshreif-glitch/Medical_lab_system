@@ -3129,21 +3129,10 @@ document.querySelectorAll(
     subtree: true
   });
 
-  updateLabNova();
-})();
-</script>
-
-<!-- LabNova: Result Direction and Abnormal Result Highlight -->
+  updateLabNova
+<script>
+<!-- LabNova: Safe Result Direction and Abnormal Highlight -->
 <style>
-/* اتجاه كتابة نتائج المريض */
-#resultFields .ln-parameter-value,
-#resultFields input[data-field="result"] {
-  direction: ltr !important;
-  text-align: left !important;
-  unicode-bidi: isolate !important;
-}
-
-/* النتيجة غير الطبيعية */
 .ln-abnormal-result {
   color: #d00000 !important;
   font-weight: bold !important;
@@ -3153,11 +3142,18 @@ document.querySelectorAll(
 
 .ln-result-flag {
   display: inline-block;
-  color: #d00000;
-  font-weight: bold;
+  color: #d00000 !important;
+  font-weight: bold !important;
   font-size: 20px;
   margin: 4px;
   vertical-align: middle;
+}
+
+#resultFields input[data-field="result"],
+.ln-parameter-value {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: isolate !important;
 }
 
 @media print {
@@ -3171,6 +3167,157 @@ document.querySelectorAll(
 }
 </style>
 
+<script>
+(function () {
+  "use strict";
+
+  function getFlag(value, reference) {
+    value = String(value || "").trim();
+    reference = String(reference || "").trim();
+
+    if (!value || !reference) return "";
+
+    const range = reference.match(
+      /^\s*(-?\d+(?:[.,]\d+)?)\s*[-–—]\s*(-?\d+(?:[.,]\d+)?)/
+    );
+
+    const number = Number(value.replace(",", "."));
+
+    if (!range || !Number.isFinite(number)) return "";
+
+    const a = Number(range[1].replace(",", "."));
+    const b = Number(range[2].replace(",", "."));
+
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return "";
+
+    const min = Math.min(a, b);
+    const max = Math.max(a, b);
+
+    if (number < min) return "↓";
+    if (number > max) return "↑";
+
+    return "";
+  }
+
+  function updateOne(input, reference) {
+    if (!input) return;
+
+    input.dir = "ltr";
+    input.style.direction = "ltr";
+    input.style.textAlign = "left";
+
+    const flag = reference
+      ? getFlag(input.value, reference.value)
+      : "";
+
+    input.classList.toggle("ln-abnormal-result", !!flag);
+    input.dataset.abnormal = flag ? "true" : "false";
+    input.title = flag ? "نتيجة خارج المعدل المرجعي " + flag : "";
+
+    input.style.color = flag ? "#d00000" : "";
+    input.style.fontWeight = flag ? "bold" : "";
+    input.style.backgroundColor = flag ? "#fff1f1" : "";
+    input.style.border = flag ? "2px solid #d00000" : "";
+
+    let marker = input.nextElementSibling;
+
+    if (!marker || !marker.classList.contains("ln-result-flag")) {
+      marker = null;
+    }
+
+    if (flag) {
+      if (!marker) {
+        marker = document.createElement("span");
+        marker.className = "ln-result-flag";
+        input.insertAdjacentElement("afterend", marker);
+      }
+
+      if (marker.textContent !== flag) {
+        marker.textContent = flag;
+      }
+    } else if (marker) {
+      marker.remove();
+    }
+  }
+
+  function updateAll() {
+    document.querySelectorAll("#resultFields .test-fields").forEach(box => {
+      const result = box.querySelector('input[data-field="result"]');
+      const reference = box.querySelector('input[data-field="reference"]');
+
+      updateOne(result, reference);
+    });
+
+    document.querySelectorAll(".ln-profile-row").forEach(row => {
+      const result = row.querySelector(".ln-parameter-value");
+      const reference = row.querySelector(".ln-parameter-reference");
+
+      updateOne(result, reference);
+    });
+  }
+
+  document.addEventListener("input", function (event) {
+    const input = event.target;
+
+    if (
+      input.matches('#resultFields input[data-field="result"]') ||
+      input.matches(".ln-parameter-value")
+    ) {
+      const box = input.closest(".test-fields, .ln-profile-row");
+
+      if (box) {
+        const reference = box.querySelector(
+          'input[data-field="reference"], .ln-parameter-reference'
+        );
+
+        updateOne(input, reference);
+      }
+    }
+  });
+
+  document.addEventListener("change", updateAll);
+
+  const previousPrint = window.print.bind(window);
+
+  window.print = function () {
+    const area = document.getElementById("printArea");
+
+    if (area) {
+      area.querySelectorAll("tbody tr").forEach(row => {
+        const cells = row.querySelectorAll("td");
+
+        if (cells.length < 4) return;
+
+        const result = cells[1];
+        const reference = cells[3];
+
+        const flag = getFlag(
+          result.textContent.trim(),
+          reference.textContent.trim()
+        );
+
+        if (flag) {
+          result.style.color = "#d00000";
+          result.style.fontWeight = "bold";
+
+          if (!result.querySelector(".ln-result-flag")) {
+            const marker = document.createElement("span");
+            marker.className = "ln-result-flag";
+            marker.textContent = " " + flag;
+            result.appendChild(marker);
+          }
+        }
+      });
+    }
+
+    previousPrint();
+  };
+
+  updateAll();
+  setTimeout(updateAll, 300);
+
+})();
+</script>
 <script>
 (function () {
   "use strict";
