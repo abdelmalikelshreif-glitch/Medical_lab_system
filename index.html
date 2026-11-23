@@ -3133,4 +3133,196 @@ document.querySelectorAll(
 })();
 </script>
 
+<!-- LabNova: Result Direction and Abnormal Result Highlight -->
+<style>
+/* اتجاه كتابة نتائج المريض */
+#resultFields .ln-parameter-value,
+#resultFields input[data-field="result"] {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: isolate !important;
+}
+
+/* النتيجة غير الطبيعية */
+.ln-abnormal-result {
+  color: #d00000 !important;
+  font-weight: bold !important;
+  border: 2px solid #d00000 !important;
+  background: #fff1f1 !important;
+}
+
+.ln-result-flag {
+  display: inline-block;
+  color: #d00000;
+  font-weight: bold;
+  font-size: 20px;
+  margin: 4px;
+  vertical-align: middle;
+}
+
+@media print {
+  .ln-abnormal-result,
+  .ln-result-flag {
+    color: #d00000 !important;
+    font-weight: bold !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+</style>
+
+<script>
+(function () {
+  "use strict";
+
+  function getFlag(value, reference, parameter) {
+    value = String(value || "").trim();
+    reference = String(reference || "").trim();
+
+    if (!value) return "";
+
+    // مقارنة النتائج الرقمية بالمعدل المرجعي
+    const range = reference.match(
+      /^\s*(-?\d+(?:[.,]\d+)?)\s*[-–—]\s*(-?\d+(?:[.,]\d+)?)\s*$/
+    );
+
+    const number = Number(value.replace(",", "."));
+
+    if (range && Number.isFinite(number)) {
+      const a = Number(range[1].replace(",", "."));
+      const b = Number(range[2].replace(",", "."));
+      const min = Math.min(a, b);
+      const max = Math.max(a, b);
+
+      if (number < min) return "↓";
+      if (number > max) return "↑";
+      return "";
+    }
+
+    // النتائج النوعية غير الطبيعية
+    const v = value.toLowerCase();
+
+    if (
+      /^(positive|trace|\+|\+\+|\+\+\+|detected|present|abnormal)$/.test(v)
+    ) return "↑";
+
+    if (
+      /^(negative|normal|not detected|absent)$/.test(v)
+    ) return "";
+
+    return "";
+  }
+
+  function updateOne(input, reference, parameter) {
+    if (!input || !reference) return;
+
+    const flag = getFlag(input.value, reference.value, parameter);
+
+    input.classList.toggle("ln-abnormal-result", !!flag);
+    input.dataset.abnormal = flag ? "true" : "false";
+    input.title = flag ? "نتيجة غير طبيعية " + flag : "";
+
+    let marker = input.parentElement.querySelector(
+      ".ln-result-flag"
+    );
+
+    if (flag) {
+      if (!marker) {
+        marker = document.createElement("span");
+        marker.className = "ln-result-flag";
+        input.insertAdjacentElement("afterend", marker);
+      }
+      marker.textContent = flag;
+    } else if (marker) {
+      marker.remove();
+    }
+  }
+
+  function updateAll() {
+    document.querySelectorAll(".ln-profile-row").forEach(row => {
+      const input = row.querySelector(".ln-parameter-value");
+      const reference = row.querySelector(".ln-parameter-reference");
+
+      if (input) {
+        input.dir = "ltr";
+        input.style.direction = "ltr";
+        input.style.textAlign = "left";
+      }
+
+      updateOne(
+        input,
+        reference,
+        row.dataset.parameter
+      );
+    });
+
+    document.querySelectorAll(
+      '#resultFields input[data-field="result"]'
+    ).forEach(input => {
+      input.dir = "ltr";
+      input.style.direction = "ltr";
+      input.style.textAlign = "left";
+
+      const box = input.closest(".test-fields");
+      const reference = box?.querySelector(
+        'input[data-field="reference"]'
+      );
+
+      updateOne(input, reference, "");
+    });
+  }
+
+  document.addEventListener("input", updateAll);
+  document.addEventListener("change", updateAll);
+
+  const observer = new MutationObserver(updateAll);
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  // تمييز النتائج غير الطبيعية في التقرير المطبوع
+  const previousPrint = window.print.bind(window);
+
+  window.print = function () {
+    const area = document.getElementById("printArea");
+
+    if (area) {
+      area.querySelectorAll("tbody tr").forEach(row => {
+        const cells = row.querySelectorAll("td");
+
+        if (cells.length < 4) return;
+
+        const result = cells[1];
+        const reference = cells[3];
+
+        const flag = getFlag(
+          result.textContent.trim(),
+          reference.textContent.trim(),
+          cells[0].textContent.trim()
+        );
+
+        if (flag) {
+          result.style.color = "#d00000";
+          result.style.fontWeight = "bold";
+
+          if (!result.querySelector(".ln-result-flag")) {
+            const marker = document.createElement("span");
+            marker.className = "ln-result-flag";
+            marker.textContent = " " + flag;
+            result.appendChild(marker);
+          }
+        }
+      });
+    }
+
+    previousPrint();
+  };
+
+  document.addEventListener("DOMContentLoaded", updateAll);
+  updateAll();
+
+})();
+</script>
+
 </html>
