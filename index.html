@@ -3379,7 +3379,9 @@ document.querySelectorAll(
         marker.className = "ln-result-flag";
         input.insertAdjacentElement("afterend", marker);
       }
-      marker.textContent = flag;
+      if (marker.textContent !== flag) {
+  marker.textContent = flag;
+}
     } else if (marker) {
       marker.remove();
     }
