@@ -3402,76 +3402,173 @@ document.querySelectorAll(
         input,
         reference,
         row.dataset.parameter
-      );
-    });
+<!-- LabNova: unified reference-range and result-status repair -->
+<style>
+  #resultFields input[data-field="result"],
+  #resultFields input[data-field="reference"],
+  .ln-profile-row input[data-field="result"],
+  .ln-profile-row input[data-field="reference"] {
+    direction: ltr !important;
+    text-align: left !important;
+    unicode-bidi: plaintext;
+  }
+  .ln-abnormal,
+  .result-abnormal {
+    color: #c62828 !important;
+    font-weight: 700 !important;
+  }
+  .ln-normal,
+  .result-normal {
+    color: #187a3d !important;
+  }
+</style>
 
-    document.querySelectorAll(
-      '#resultFields input[data-field="result"]'
-    ).forEach(input => {
-      input.dir = "ltr";
-      input.style.direction = "ltr";
-      input.style.textAlign = "left";
+<script>
+(() => {
+  'use strict';
 
-      const box = input.closest(".test-fields");
-      const reference = box?.querySelector(
-        'input[data-field="reference"]'
-      );
+  // Convert only a plain two-number interval to ascending order.
+  // Descriptive, age-specific, sex-specific and qualitative references remain unchanged.
+  function normalizeReference(element) {
+    if (!element) return;
+    const isInput = 'value' in element;
+    const original = String(isInput ? element.value : element.textContent || '').trim();
+    const match = original.match(/^(-?\d+(?:[.,]\d+)?)\s*([–—-])\s*(-?\d+(?:[.,]\d+)?)$/);
+    if (!match) return;
 
-      updateOne(input, reference, "");
-    });
+    const firstText = match[1];
+    const secondText = match[3];
+    const first = Number(firstText.replace(',', '.'));
+    const second = Number(secondText.replace(',', '.'));
+    if (!Number.isFinite(first) || !Number.isFinite(second) || first <= second) return;
+
+    const separator = match[2] === '-' ? '–' : match[2];
+    const normalized = secondText + separator + firstText;
+    if (isInput) element.value = normalized;
+    else element.textContent = normalized;
   }
 
-  document.addEventListener("input", updateAll);
-  document.addEventListener("change", updateAll);
+  function numericValue(value) {
+    const cleaned = String(value ?? '').trim().replace(',', '.');
+    if (!/^-?\d+(?:\.\d+)?$/.test(cleaned)) return null;
+    const number = Number(cleaned);
+    return Number.isFinite(number) ? number : null;
+  }
 
-  const observer = new MutationObserver(updateAll);
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
+  function referenceBounds(reference) {
+    const text = String(reference ?? '').trim();
+    const match = text.match(/^(-?\d+(?:[.,]\d+)?)\s*[–—-]\s*(-?\d+(?:[.,]\d+)?)$/);
+    if (!match) return null;
+    let low = Number(match[1].replace(',', '.'));
+    let high = Number(match[2].replace(',', '.'));
+    if (!Number.isFinite(low) || !Number.isFinite(high)) return null;
+    if (low > high) [low, high] = [high, low];
+    return { low, high };
+  }
 
-  // تمييز النتائج غير الطبيعية في التقرير المطبوع
-  const previousPrint = window.print.bind(window);
-
-  window.print = function () {
-    const area = document.getElementById("printArea");
-
-    if (area) {
-      area.querySelectorAll("tbody tr").forEach(row => {
-        const cells = row.querySelectorAll("td");
-
-        if (cells.length < 4) return;
-
-        const result = cells[1];
-        const reference = cells[3];
-
-        const flag = getFlag(
-          result.textContent.trim(),
-          reference.textContent.trim(),
-          cells[0].textContent.trim()
-        );
-
-        if (flag) {
-          result.style.color = "#d00000";
-          result.style.fontWeight = "bold";
-
-          if (!result.querySelector(".ln-result-flag")) {
-            const marker = document.createElement("span");
-            marker.className = "ln-result-flag";
-            marker.textContent = " " + flag;
-            result.appendChild(marker);
-          }
-        }
-      });
+  function resultStatus(value, reference) {
+    const result = numericValue(value);
+    const bounds = referenceBounds(reference);
+    if (result !== null && bounds) {
+      if (result < bounds.low) return 'low';
+      if (result > bounds.high) return 'high';
+      return 'normal';
     }
 
-    previousPrint();
+    const qualitative = String(value ?? '').trim().toLowerCase();
+    if (!qualitative) return 'unknown';
+    if (/^(positive|pos|\(\+ve\)|reactive|detected|present|trace|\+\s*)$/i.test(qualitative)) {
+      return 'abnormal';
+    }
+    if (/^(negative|neg|\(-ve\)|non-reactive|not detected|absent)$/i.test(qualitative)) {
+      return 'normal';
+    }
+    return 'unknown';
+  }
+
+  function updateResultRow(row) {
+    if (!row || !row.querySelector) return;
+    const resultInput = row.querySelector(
+      'input[data-field="result"], textarea[data-field="result"], [data-field="result"]'
+    );
+    const referenceInput = row.querySelector(
+      'input[data-field="reference"], textarea[data-field="reference"], [data-field="reference"]'
+    );
+    if (!resultInput) return;
+
+    normalizeReference(referenceInput);
+
+    const value = ('value' in resultInput) ? resultInput.value : resultInput.textContent;
+    const reference = referenceInput
+      ? (('value' in referenceInput) ? referenceInput.value : referenceInput.textContent)
+      : '';
+
+    const status = resultStatus(value, reference);
+    resultInput.classList.remove('ln-abnormal', 'result-abnormal', 'ln-normal', 'result-normal');
+    if (status === 'low' || status === 'high' || status === 'abnormal') {
+      resultInput.classList.add('ln-abnormal', 'result-abnormal');
+    } else if (status === 'normal') {
+      resultInput.classList.add('ln-normal', 'result-normal');
+    }
+    resultInput.dataset.labnovaStatus = status;
+  }
+
+  function updateAllResults(root) {
+    const scope = root && root.querySelectorAll ? root : document;
+    scope.querySelectorAll('#resultFields .test-fields, #resultFields [data-test-row], .ln-profile-row')
+      .forEach(updateResultRow);
+  }
+
+  function handleEdit(event) {
+    const target = event.target;
+    if (!target || !target.matches) return;
+    if (target.matches('[data-field="reference"]')) normalizeReference(target);
+    if (target.matches('[data-field="result"], [data-field="reference"]')) {
+      const row = target.closest('.test-fields, [data-test-row], .ln-profile-row');
+      if (row) updateResultRow(row);
+    }
+  }
+
+  document.addEventListener('input', handleEdit, true);
+  document.addEventListener('change', handleEdit, true);
+  document.addEventListener('DOMContentLoaded', () => updateAllResults(document));
+  window.addEventListener('beforeprint', () => updateAllResults(document));
+
+  const observer = new MutationObserver(records => {
+    for (const record of records) {
+      if (record.target && record.target.nodeType === 1) {
+        const row = record.target.closest
+          ? record.target.closest('.test-fields, [data-test-row], .ln-profile-row')
+          : null;
+        if (row) updateResultRow(row);
+      }
+      record.addedNodes && record.addedNodes.forEach(node => {
+        if (node.nodeType !== 1) return;
+        if (node.matches && node.matches('.test-fields, [data-test-row], .ln-profile-row')) {
+          updateResultRow(node);
+        }
+        updateAllResults(node);
+      });
+    }
+  });
+
+  function startObserver() {
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+      updateAllResults(document);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startObserver, { once: true });
+  } else {
+    startObserver();
+  }
+
+  // Keep the helpers available for the existing interface without replacing its functions.
+  window.LabNovaReferenceFix = {
+    normalizeReference,
+    updateAllResults,
+    resultStatus
   };
-
-  document.addEventListener("DOMContentLoaded", updateAll);
-  updateAll();
-
 })();
 </script>
-
-</html>
