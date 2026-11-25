@@ -3555,6 +3555,159 @@ document.querySelectorAll(
   function startObserver() {
     if (document.body) {
       observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+<!-- LabNova: unified reference-range and result-status repair -->
+<style>
+  #resultFields input[data-field="result"],
+  #resultFields input[data-field="reference"],
+  .ln-profile-row input[data-field="result"],
+  .ln-profile-row input[data-field="reference"] {
+    direction: ltr !important;
+    text-align: left !important;
+    unicode-bidi: plaintext;
+  }
+  .ln-abnormal,
+  .result-abnormal {
+    color: #c62828 !important;
+    font-weight: 700 !important;
+  }
+  .ln-normal,
+  .result-normal {
+    color: #187a3d !important;
+  }
+</style>
+
+<script>
+(() => {
+  'use strict';
+
+  // Display a plain two-number interval in the requested descending order.
+  // Descriptive, age-specific, sex-specific and qualitative references remain unchanged.
+  function normalizeReference(element) {
+    if (!element) return;
+    const isInput = 'value' in element;
+    const original = String(isInput ? element.value : element.textContent || '').trim();
+    const match = original.match(/^(-?\d+(?:[.,]\d+)?)\s*([–—-])\s*(-?\d+(?:[.,]\d+)?)$/);
+    if (!match) return;
+
+    const firstText = match[1];
+    const secondText = match[3];
+    const first = Number(firstText.replace(',', '.'));
+    const second = Number(secondText.replace(',', '.'));
+    if (!Number.isFinite(first) || !Number.isFinite(second) || first >= second) return;
+
+    const separator = match[2] === '-' ? '–' : match[2];
+    const normalized = secondText + separator + firstText;
+    if (isInput) element.value = normalized;
+    else element.textContent = normalized;
+  }
+
+  function numericValue(value) {
+    const cleaned = String(value ?? '').trim().replace(',', '.');
+    if (!/^-?\d+(?:\.\d+)?$/.test(cleaned)) return null;
+    const number = Number(cleaned);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function referenceBounds(reference) {
+    const text = String(reference ?? '').trim();
+    const match = text.match(/^(-?\d+(?:[.,]\d+)?)\s*[–—-]\s*(-?\d+(?:[.,]\d+)?)$/);
+    if (!match) return null;
+    let low = Number(match[1].replace(',', '.'));
+    let high = Number(match[2].replace(',', '.'));
+    if (!Number.isFinite(low) || !Number.isFinite(high)) return null;
+    if (low > high) [low, high] = [high, low];
+    return { low, high };
+  }
+
+  function resultStatus(value, reference) {
+    const result = numericValue(value);
+    const bounds = referenceBounds(reference);
+    if (result !== null && bounds) {
+      if (result < bounds.low) return 'low';
+      if (result > bounds.high) return 'high';
+      return 'normal';
+    }
+
+    const qualitative = String(value ?? '').trim().toLowerCase();
+    if (!qualitative) return 'unknown';
+    if (/^(positive|pos|\(\+ve\)|reactive|detected|present|trace|\+\s*)$/i.test(qualitative)) {
+      return 'abnormal';
+    }
+    if (/^(negative|neg|\(-ve\)|non-reactive|not detected|absent)$/i.test(qualitative)) {
+      return 'normal';
+    }
+    return 'unknown';
+  }
+
+  function updateResultRow(row) {
+    if (!row || !row.querySelector) return;
+    const resultInput = row.querySelector(
+      'input[data-field="result"], textarea[data-field="result"], [data-field="result"]'
+    );
+    const referenceInput = row.querySelector(
+      'input[data-field="reference"], textarea[data-field="reference"], [data-field="reference"]'
+    );
+    if (!resultInput) return;
+
+    normalizeReference(referenceInput);
+
+    const value = ('value' in resultInput) ? resultInput.value : resultInput.textContent;
+    const reference = referenceInput
+      ? (('value' in referenceInput) ? referenceInput.value : referenceInput.textContent)
+      : '';
+
+    const status = resultStatus(value, reference);
+    resultInput.classList.remove('ln-abnormal', 'result-abnormal', 'ln-normal', 'result-normal');
+    if (status === 'low' || status === 'high' || status === 'abnormal') {
+      resultInput.classList.add('ln-abnormal', 'result-abnormal');
+    } else if (status === 'normal') {
+      resultInput.classList.add('ln-normal', 'result-normal');
+    }
+    resultInput.dataset.labnovaStatus = status;
+  }
+
+  function updateAllResults(root) {
+    const scope = root && root.querySelectorAll ? root : document;
+    scope.querySelectorAll('#resultFields .test-fields, #resultFields [data-test-row], .ln-profile-row')
+      .forEach(updateResultRow);
+  }
+
+  function handleEdit(event) {
+    const target = event.target;
+    if (!target || !target.matches) return;
+    if (target.matches('[data-field="reference"]')) normalizeReference(target);
+    if (target.matches('[data-field="result"], [data-field="reference"]')) {
+      const row = target.closest('.test-fields, [data-test-row], .ln-profile-row');
+      if (row) updateResultRow(row);
+    }
+  }
+
+  document.addEventListener('input', handleEdit, true);
+  document.addEventListener('change', handleEdit, true);
+  document.addEventListener('DOMContentLoaded', () => updateAllResults(document));
+  window.addEventListener('beforeprint', () => updateAllResults(document));
+
+  const observer = new MutationObserver(records => {
+    for (const record of records) {
+      if (record.target && record.target.nodeType === 1) {
+        const row = record.target.closest
+          ? record.target.closest('.test-fields, [data-test-row], .ln-profile-row')
+          : null;
+        if (row) updateResultRow(row);
+      }
+      record.addedNodes && record.addedNodes.forEach(node => {
+        if (node.nodeType !== 1) return;
+        if (node.matches && node.matches('.test-fields, [data-test-row], .ln-profile-row')) {
+          updateResultRow(node);
+        }
+        updateAllResults(node);
+      });
+    }
+  });
+
+  function startObserver() {
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
       updateAllResults(document);
     }
   }
@@ -3572,3 +3725,4 @@ document.querySelectorAll(
   };
 })();
 </script>
+
