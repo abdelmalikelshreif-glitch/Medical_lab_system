@@ -318,10 +318,26 @@ function renderFields() {
     note.textContent =
       "راجع الوحدة والمعدل المرجعي وفق جهاز المختبر والكواشف والعمر والنوع قبل اعتماد النتيجة.";
 
-    box.appendChild(fields);
-    box.appendChild(note);
-    container.appendChild(box);
-  });
+          cbcFields.forEach(([name, unit, reference]) => {
+        [
+          [name, name, ""],
+          [name + " Unit", name + "_unit", unit],
+          [name + " Reference", name + "_reference", reference]
+        ].forEach(([placeholder, key, value]) => {
+          const label = document.createElement("label");
+          label.textContent = placeholder;
+
+          const input = document.createElement("input");
+          input.type = "text";
+          input.placeholder = placeholder;
+          input.value = value;
+          input.dataset.test = test;
+          input.dataset.field = key;
+
+          label.appendChild(input);
+          fields.appendChild(label);
+        });
+      });
 }
 
 
