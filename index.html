@@ -3554,7 +3554,23 @@ document.querySelectorAll(
 
   function startObserver() {
     if (document.body) {
-      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true });      updateAllResults(document);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startObserver, { once: true });
+  } else {
+    startObserver();
+  }
+
+  window.LabNovaReferenceFix = {
+    normalizeReference,
+    updateAllResults,
+    resultStatus
+  };
+})();
+</script>
 <!-- LabNova: unified reference-range and result-status repair -->
 <style>
   #resultFields input[data-field="result"],
@@ -3725,4 +3741,5 @@ document.querySelectorAll(
   };
 })();
 </script>
+  
 
