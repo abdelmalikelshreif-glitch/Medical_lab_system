@@ -3699,47 +3699,254 @@ document.querySelectorAll(
   }
 
   document.addEventListener('input', handleEdit, true);
-  document.addEventListener('change', handleEdit, true);
-  document.addEventListener('DOMContentLoaded', () => updateAllResults(document));
-  window.addEventListener('beforeprint', () => updateAllResults(document));
 
-  const observer = new MutationObserver(records => {
-    for (const record of records) {
-      if (record.target && record.target.nodeType === 1) {
-        const row = record.target.closest
-          ? record.target.closest('.test-fields, [data-test-row], .ln-profile-row')
-          : null;
-        if (row) updateResultRow(row);
-      }
-      record.addedNodes && record.addedNodes.forEach(node => {
-        if (node.nodeType !== 1) return;
-        if (node.matches && node.matches('.test-fields, [data-test-row], .ln-profile-row')) {
-          updateResultRow(node);
-        }
-        updateAllResults(node);
-      });
+<!-- LabNova unified result status and reference display repair -->
+<style>
+  #resultFields input[data-field="result"],
+  #resultFields textarea[data-field="result"],
+  .ln-profile-row .ln-parameter-value {
+    direction: ltr !important;
+    text-align: left !important;
+  }
+
+  .ln-abnormal,
+  .result-abnormal,
+  .ln-abnormal-result {
+    color: #c62828 !important;
+    font-weight: 700 !important;
+  }
+
+  .ln-normal,
+  .result-normal {
+    color: #187a3d !important;
+  }
+
+  @media print {
+    .ln-abnormal,
+    .result-abnormal,
+    .ln-abnormal-result {
+      color: #c62828 !important;
+      font-weight: 700 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
+  }
+</style>
+
+<script>
+(() => {
+  'use strict';
+
+  const rowSelector =
+    '#resultFields .test-fields, #resultFields [data-test-row], .ln-profile-row';
+
+  function readValue(el) {
+    if (!el) return '';
+    return ('value' in el)
+      ? String(el.value || '').trim()
+      : String(el.textContent || '').trim();
+  }
+
+  function numericValue(value) {
+    const s = String(value ?? '').trim().replace(',', '.');
+    if (!/^-?\d+(?:\.\d+)?$/.test(s)) return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function boundsOf(reference) {
+    const s = String(reference ?? '').trim().replace(/,/g, '.');
+    let m = s.match(
+      /^\s*(-?\d+(?:\.\d+)?)\s*[–—-]\s*(-?\d+(?:\.\d+)?)\s*$/
+    );
+
+    if (m) {
+      const a = Number(m[1]);
+      const b = Number(m[2]);
+      if (Number.isFinite(a) && Number.isFinite(b)) {
+        return { low: Math.min(a, b), high: Math.max(a, b) };
+      }
+    }
+
+    m = s.match(/^\s*<\s*(-?\d+(?:\.\d+)?)\s*$/);
+    if (m) return { lessThan: Number(m[1]) };
+
+    m = s.match(/^\s*>\s*(-?\d+(?:\.\d+)?)\s*$/);
+    if (m) return { greaterThan: Number(m[1]) };
+
+    return null;
+  }
+
+  function getStatus(value, reference) {
+    const n = numericValue(value);
+    const b = boundsOf(reference);
+
+    if (n !== null && b) {
+      if (b.low !== undefined) {
+        return n < b.low || n > b.high ? 'abnormal' : 'normal';
+      }
+      if (b.lessThan !== undefined) {
+        return n < b.lessThan ? 'normal' : 'abnormal';
+      }
+      if (b.greaterThan !== undefined) {
+        return n > b.greaterThan ? 'normal' : 'abnormal';
+      }
+    }
+
+    const q = String(value ?? '').trim().toLowerCase();
+    if (!q) return 'unknown';
+
+    if (/^(positive|pos|\(\+ve\)|reactive|detected|present|\+{1,3})$/i.test(q)) {
+      return 'abnormal';
+    }
+
+    if (/^(negative|neg|\(-ve\)|non-reactive|not detected|absent|normal)$/i.test(q)) {
+      return 'normal';
+    }
+
+    return 'unknown';
+  }
+
+  function updateRow(row) {
+    if (!row || !row.querySelector) return;
+
+    const result = row.querySelector(
+      'input[data-field="result"], textarea[data-field="result"], [data-field="result"], .ln-parameter-value'
+    );
+
+    const reference = row.querySelector(
+      'input[data-field="reference"], textarea[data-field="reference"], [data-field="reference"], .ln-parameter-reference'
+    );
+
+    if (!result) return;
+
+    const status = getStatus(readValue(result), readValue(reference));
+
+    result.classList.remove(
+      'ln-abnormal',
+      'result-abnormal',
+      'ln-normal',
+      'result-normal',
+      'ln-abnormal-result'
+    );
+
+    if (status === 'abnormal') {
+      result.classList.add(
+        'ln-abnormal',
+        'result-abnormal',
+        'ln-abnormal-result'
+      );
+    } else if (status === 'normal') {
+      result.classList.add('ln-normal', 'result-normal');
+    }
+
+    result.dataset.labnovaStatus = status;
+  }
+
+  function updatePrintRows(root) {
+    const scope = root && root.querySelectorAll ? root : document;
+
+    scope.querySelectorAll(
+      '#printArea tbody tr, #printArea .result-row'
+    ).forEach(row => {
+      const cells = row.querySelectorAll('td');
+      if (cells.length < 4) return;
+
+      const status = getStatus(
+        cells[1].textContent,
+        cells[3].textContent
+      );
+
+      cells[1].classList.remove(
+        'ln-abnormal',
+        'result-abnormal',
+        'ln-normal',
+        'result-normal'
+      );
+
+      if (status === 'abnormal') {
+        cells[1].classList.add('ln-abnormal', 'result-abnormal');
+      } else if (status === 'normal') {
+        cells[1].classList.add('ln-normal', 'result-normal');
+      }
+    });
+  }
+
+  function updateAll(root) {
+    const scope = root && root.querySelectorAll ? root : document;
+
+    if (scope.matches && scope.matches(rowSelector)) {
+      updateRow(scope);
+    }
+
+    scope.querySelectorAll(rowSelector).forEach(updateRow);
+    updatePrintRows(scope);
+  }
+
+  function handleEdit(event) {
+    const target = event.target;
+
+    if (
+      !target ||
+      !target.matches ||
+      !target.matches(
+        '[data-field="result"], [data-field="reference"], .ln-parameter-value, .ln-parameter-reference'
+      )
+    ) return;
+
+    const row = target.closest(
+      '.test-fields, [data-test-row], .ln-profile-row'
+    );
+
+    if (row) updateRow(row);
+  }
+
+  document.addEventListener('input', handleEdit, true);
+  document.addEventListener('change', handleEdit, true);
+
+  window.addEventListener('beforeprint', () => {
+    updateAll(document);
   });
 
-  function startObserver() {
-    if (document.body) {
-      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-      updateAllResults(document);
-    }
-  }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', startObserver, { once: true });
+    document.addEventListener(
+      'DOMContentLoaded',
+      () => updateAll(document),
+      { once: true }
+    );
   } else {
-    startObserver();
+    updateAll(document);
   }
 
-  // Keep the helpers available for the existing interface without replacing its functions.
+  const observer = new MutationObserver(records => {
+    records.forEach(record => {
+      if (!record.addedNodes) return;
+
+      record.addedNodes.forEach(node => {
+        if (node.nodeType === 1) updateAll(node);
+      });
+    });
+  });
+
+  function observe() {
+    if (document.body) {
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', observe, { once: true });
+  } else {
+    observe();
+  }
+
   window.LabNovaReferenceFix = {
-    normalizeReference,
-    updateAllResults,
-    resultStatus
+    updateAll,
+    getStatus,
+    boundsOf
   };
 })();
 </script>
-  
-
