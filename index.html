@@ -3987,3 +3987,164 @@ document.querySelectorAll(
   });
 })();
 </script>
+<script>
+(function () {
+  "use strict";
+
+  const cbcParameters = [
+    ["WBC", "10⁹/L"],
+    ["LYM%", "%"],
+    ["MID%", "%"],
+    ["GRAN%", "%"],
+    ["LYM#", "10⁹/L"],
+    ["MID#", "10⁹/L"],
+    ["GRAN#", "10⁹/L"],
+    ["RBC", "10¹²/L"],
+    ["HGB", "g/dL"],
+    ["HCT", "%"],
+    ["MCV", "fL"],
+    ["MCH", "pg"],
+    ["MCHC", "g/dL"],
+    ["RDW-CV", "%"],
+    ["RDW-SD", "fL"],
+    ["PLT", "10⁹/L"],
+    ["MPV", "fL"],
+    ["PDW", "fL"],
+    ["PCT", "%"],
+    ["P-LCR", "%"]
+  ];
+
+  const oldCollect = window.collectResults;
+
+  window.renderFields = function () {
+    const container = document.getElementById("resultFields");
+    container.innerHTML = "";
+
+    selectedTests.forEach(test => {
+      const section = getTestSection(test);
+      const color = section ? section.color : "#2563a6";
+
+      const box = document.createElement("div");
+      box.className = "test-fields";
+      box.style.setProperty("--c", color);
+
+      const heading = document.createElement("h3");
+      heading.textContent = test;
+      heading.style.color = color;
+      box.appendChild(heading);
+
+      if (test === "CBC") {
+        const table = document.createElement("table");
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Result</th>
+              <th>Unit</th>
+              <th>Reference Range</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        `;
+
+        const tbody = table.querySelector("tbody");
+
+        cbcParameters.forEach(([name, unit]) => {
+          const tr = document.createElement("tr");
+
+          tr.innerHTML = `
+            <td><strong>${name}</strong></td>
+            <td><input type="number" step="any"
+              class="ln-cbc-result"
+              data-parameter="${name}"
+              style="min-width:90px;text-align:center;direction:ltr"></td>
+            <td>${unit}</td>
+            <td><input type="text"
+              class="ln-cbc-reference"
+              data-parameter="${name}"
+              placeholder="Reference"
+              style="min-width:100px;direction:ltr"></td>
+          `;
+
+          tbody.appendChild(tr);
+        });
+
+        box.appendChild(table);
+      } else {
+        const fields = document.createElement("div");
+        fields.className = "fields-grid";
+
+        const defaults = testCatalog[test] || {};
+
+        [
+          ["Result", "result", ""],
+          ["Unit", "unit", defaults.unit || ""],
+          ["Reference Range", "reference", ""]
+        ].forEach(([labelText, key, value]) => {
+          const label = document.createElement("label");
+          label.textContent = labelText;
+
+          const input = document.createElement("input");
+          input.type = "text";
+          input.dataset.test = test;
+          input.dataset.field = key;
+          input.value = value;
+          input.placeholder = labelText;
+
+          label.appendChild(input);
+          fields.appendChild(label);
+        });
+
+        box.appendChild(fields);
+      }
+
+      container.appendChild(box);
+    });
+  };
+
+  window.collectResults = function () {
+    return selectedTests.map(test => {
+      if (test === "CBC") {
+        const parameters = cbcParameters.map(([name, unit]) => {
+          const result = document.querySelector(
+            '.ln-cbc-result[data-parameter="' + name + '"]'
+          );
+
+          const reference = document.querySelector(
+            '.ln-cbc-reference[data-parameter="' + name + '"]'
+          );
+
+          return {
+            name,
+            result: result ? result.value : "",
+            unit,
+            reference: reference ? reference.value : ""
+          };
+        });
+
+        return {
+          name: "CBC",
+          parameters
+        };
+      }
+
+      const values = {};
+
+      document.querySelectorAll("#resultFields input[data-test]").forEach(input => {
+        if (input.dataset.test === test) {
+          values[input.dataset.field] = input.value.trim();
+        }
+      });
+
+      return { name: test, ...values };
+    });
+  };
+
+  window.LabNovaCBC = {
+    parameters: cbcParameters
+  };
+
+  window.renderFields();
+
+})();
+</script>
