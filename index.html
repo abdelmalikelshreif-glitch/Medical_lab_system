@@ -4148,3 +4148,105 @@ document.querySelectorAll(
 
 })();
 </script>
+
+<script>
+(function () {
+  "use strict";
+
+  const CBC_DEFAULTS = {
+    "WBC":    ["10⁹/L", 4.0, 10.0],
+    "LYM%":   ["%", 20, 40],
+    "MID%":   ["%", 2, 10],
+    "GRAN%":  ["%", 50, 70],
+    "LYM#":   ["10⁹/L", 1.0, 3.0],
+    "MID#":   ["10⁹/L", 0.2, 1.0],
+    "GRAN#":  ["10⁹/L", 2.0, 7.0],
+    "RBC":    ["10¹²/L", 4.0, 6.0],
+    "HGB":    ["g/dL", 12.0, 17.5],
+    "HCT":    ["%", 36, 52],
+    "MCV":    ["fL", 80, 100],
+    "MCH":    ["pg", 27, 33],
+    "MCHC":   ["g/dL", 32, 36],
+    "RDW-CV": ["%", 11.5, 14.5],
+    "RDW-SD": ["fL", 37, 54],
+    "PLT":    ["10⁹/L", 150, 400],
+    "MPV":    ["fL", 7, 12],
+    "PDW":    ["fL", 9, 17],
+    "PCT":    ["%", 0.10, 0.50],
+    "P-LCR":  ["%", 13, 43]
+  };
+
+  function updateCBC() {
+    document.querySelectorAll(".ln-cbc-result").forEach(function(result) {
+      const name = result.dataset.parameter;
+      const defaults = CBC_DEFAULTS[name];
+
+      if (!defaults) return;
+
+      const row = result.closest("tr");
+      if (!row) return;
+
+      const cells = row.querySelectorAll("td");
+      const unitCell = cells[2];
+
+      if (unitCell) {
+        unitCell.textContent = defaults[0];
+      }
+
+      const reference = row.querySelector(".ln-cbc-reference");
+
+      if (reference && !reference.value.trim()) {
+        reference.value = defaults[1] + " - " + defaults[2];
+      }
+
+      const value = result.value.trim();
+
+      if (value === "") {
+        result.style.color = "";
+        result.style.fontWeight = "";
+        return;
+      }
+
+      const number = Number(value);
+
+      if (!Number.isFinite(number)) return;
+
+      const low = reference && reference.value.trim()
+        ? Number(reference.value.trim().split(/\s*[-–—]\s*/)[0])
+        : defaults[1];
+
+      const high = reference && reference.value.trim()
+        ? Number(reference.value.trim().split(/\s*[-–—]\s*/)[1])
+        : defaults[2];
+
+      if (!Number.isFinite(low) || !Number.isFinite(high)) return;
+
+      const abnormal = number < low || number > high;
+
+      result.style.color = abnormal ? "#dc2626" : "#15803d";
+      result.style.fontWeight = "bold";
+    });
+  }
+
+  document.addEventListener("input", function(event) {
+    if (
+      event.target.matches(".ln-cbc-result") ||
+      event.target.matches(".ln-cbc-reference")
+    ) {
+      updateCBC();
+    }
+  });
+
+  document.addEventListener("change", updateCBC);
+
+  const observer = new MutationObserver(updateCBC);
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+
+  updateCBC();
+
+})();
+</script>
