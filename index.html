@@ -3950,3 +3950,40 @@ document.querySelectorAll(
   };
 })();
 </script>
+
+<script>
+/* LabNova CBC Results Layout & Abnormal Flags */
+(function () {
+  "use strict";
+
+  function fixCBCFields() {
+    const fields = document.querySelectorAll(
+      'input, select, textarea'
+    );
+
+    fields.forEach(field => {
+      const text = (
+        field.id + " " +
+        field.name + " " +
+        field.placeholder
+      ).toUpperCase();
+
+      if (/WBC|RBC|HGB|HB|HCT|MCV|MCH|MCHC|PLT|LYM|MID|GRAN|RDW|MPV/.test(text)) {
+        field.style.direction = "ltr";
+        field.style.textAlign = "center";
+        field.style.fontSize = "16px";
+      }
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", fixCBCFields);
+  document.addEventListener("change", fixCBCFields);
+  document.addEventListener("input", fixCBCFields);
+
+  const observer = new MutationObserver(fixCBCFields);
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+})();
+</script>
