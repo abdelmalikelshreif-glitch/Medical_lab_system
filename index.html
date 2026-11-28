@@ -4189,9 +4189,9 @@ document.querySelectorAll(
       const cells = row.querySelectorAll("td");
       const unitCell = cells[2];
 
-      if (unitCell) {
-        unitCell.textContent = defaults[0];
-      }
+      if (unitCell && unitCell.textContent !== defaults[0]) {
+  unitCell.textContent = defaults[0];
+}
 
       const reference = row.querySelector(".ln-cbc-reference");
 
